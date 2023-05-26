@@ -1,0 +1,17 @@
+
+
+[package]
+name = "matrical"
+version = "0.1.0"
+edition = "2021"
+author = "Anthony Gardner"
+
+[dependencies]
+ndarray = "0.15.3"
+rayon = "1.5.1"
+serde = { version = "1.0.126", features = ["derive"] }
+crossbeam = "0.8.2"
+
+[dev-dependencies]
+criterion = "0.4"
+
