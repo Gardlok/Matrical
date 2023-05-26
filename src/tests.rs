@@ -3,7 +3,6 @@ mod tests {
 
     use super::*;
     use crate::*;
-
     #[cfg(test)]
 
     mod tests {
@@ -12,119 +11,184 @@ mod tests {
 
         #[test]
 
-        fn test_get_set() {
-            let matrix = AtomicFlagMatrix::new((2, 2));
+        fn test_set_operation() {
+            let mut matrix = AtomicFlagMatrix::new(5, 5);
 
-            let set_operation = SetOperation {
-                index: (0, 0),
-                value: true,
-            };
+            let set_operation = SetOperation;
 
-            let get_operation = GetOperation { index: (0, 0) };
+            let strategy = MatrixStrategy::new(Box::new(set_operation));
 
-            assert_eq!(
-                matrix.handle_operation(Box::new(get_operation)),
-                Ok(OperationResult::Get(false))
-            );
+            // Set a value in the matrix
 
-            assert_eq!(
-                matrix.handle_operation(Box::new(set_operation)),
-                Ok(OperationResult::Set)
-            );
+            strategy.execute(&mut matrix, (2, 2), Some(true)).unwrap();
 
-            assert_eq!(
-                matrix.handle_operation(Box::new(get_operation)),
-                Ok(OperationResult::Get(true))
-            );
+            // Check if the value was set correctly
+
+            assert_eq!(matrix.get((2, 2)).unwrap(), true);
         }
 
-        // #[test]
+        #[test]
 
-        // fn test_out_of_bounds() {
-        //     let matrix = AtomicFlagMatrix::new((2, 2));
-        //     let set_operation = SetOperation {Box::new()
-        //         index: (2, 2),
-        //         value: true,
-        //     };
-        //     let get_operation = GetOperation { index: (2, 2) };
+        fn test_get_operation() {
+            let mut matrix = AtomicFlagMatrix::new(5, 5);
 
-        //     assert_eq!(
-        //         matrix.handle_operation(Box::new(get_operation)),
-        //         Err(AtomicFlagMatrixError::IndexOutOfBounds)
-        //     );
-        //     assert_eq!(
-        //         matrix.handle_operation(Box::new(set_operation)),
-        //         Err(AtomicFlagMatrixError::IndexOutOfBounds)
-        //     );
-        // }
+            let set_operation = SetOperation;
+
+            let get_operation = GetOperation;
+
+            let set_strategy = MatrixStrategy::new(Box::new(set_operation));
+
+            let get_strategy = MatrixStrategy::new(Box::new(get_operation));
+
+            // Set a value in the matrix
+
+            set_strategy
+                .execute(&mut matrix, (2, 2), Some(true))
+                .unwrap();
+
+            // Get the value from the matrix
+
+            let value = get_strategy.execute(&mut matrix, (2, 2), None).unwrap();
+
+            // Check if the value was retrieved correctly
+
+            assert_eq!(value, true);
+        }
+
+        #[test]
+
+        fn test_toggle_operation() {
+            let mut matrix = AtomicFlagMatrix::new(5, 5);
+
+            let set_operation = SetOperation;
+
+            let toggle_operation = ToggleOperation;
+
+            let set_strategy = MatrixStrategy::new(Box::new(set_operation));
+
+            let toggle_strategy = MatrixStrategy::new(Box::new(toggle_operation));
+
+            // Set a value in the matrix
+
+            set_strategy
+                .execute(&mut matrix, (2, 2), Some(true))
+                .unwrap();
+
+            // Toggle the value in the matrix
+
+            toggle_strategy.execute(&mut matrix, (2, 2), None).unwrap();
+
+            // Check if the value was toggled correctly
+
+            assert_eq!(matrix.get((2, 2)).unwrap(), false);
+        }
+
+        #[test]
+
+        fn test_view_operation() {
+            let mut matrix = AtomicFlagMatrix::new(5, 5);
+            let set_operation = SetOperation;
+            let view_operation = ViewOperation::new(1, 1, 3, 3);
+            let set_strategy = MatrixStrategy::new(Box::new(set_operation));
+            let view_strategy = MatrixStrategy::new(Box::new(view_operation));
+
+            // Set a value in the matrix
+            set_strategy
+                .execute(&mut matrix, (2, 2), Some(true))
+                .unwrap();
+
+            // Get the view from the matrix
+            let view = view_strategy.execute(&mut matrix, (0, 0), None).unwrap();
+
+            // Check if the view was retrieved correctly
+
+            assert_eq!(
+                view,
+                vec![
+                    vec![false, false, false],
+                    vec![false, true, false],
+                    vec![false, false, false]
+                ]
+            );
+        }
     }
 
-    // #[test]
-    // fn test_get_set() {
-    //     let matrix = AtomicFlagMatrix::new((2, 2));
-    //     assert_eq!(matrix.get((0, 0)), Ok(false));
-    //     assert_eq!(matrix..set((0, 0), true), Ok(()));
-    //     assert_eq!(matrix.get((0, 0)), Ok(true));
-    // }
+    #[test]
+    fn test_bitwise_and_operation() {
+        let matrix = AtomicFlagMatrix::new((2, 2));
 
-    // #[test]
-    // fn test_out_of_bounds() {
-    //     let matrix = AtomicFlagMatrix::new((2, 2));
-    //     assert_eq!(
-    //         matrix.get((2, 2)),
-    //         Err(AtomicFlagMatrixError::IndexOutOfBounds)
-    //     );
+        let strategy = BitwiseAndOperation;
 
-    //     assert_eq!(
-    //         matrix.set((2, 2), true),
-    //         Err(AtomicFlagMatrixError::IndexOutOfBounds)
-    //     );
-    // }
+        let context = MatrixContext {
+            matrix: &matrix,
 
-    // #[test]
-    // fn test_updates() {
-    //     let matrix = AtomicFlagMatrix::new((2, 2));
-    //     matrix
-    //         .queue_update(Box::new(|data| {
-    //             data[(0, 0)].store(true);
-    //         }))
-    //         .unwrap();
+            index: (0, 0),
 
-    //     assert_eq!(matrix.get((0, 0)), Ok(false));
-    //     matrix.apply_next_update().unwrap();
-    //     assert_eq!(matrix.get((0, 0)), Ok(true));
-    // }
+            other: Some(true),
+        };
 
-    // #[test]
-    // fn test_bitwise_operations() {
-    //     let matrix = AtomicFlagMatrix::new((2, 2));
+        strategy.execute(&context).unwrap();
 
-    //     // Set a value to true
+        assert_eq!(matrix.get((0, 0)).unwrap(), false);
+    }
 
-    //     assert_eq!(matrix.set((0, 0), true), Ok(()));
+    #[test]
 
-    //     // Bitwise AND with false should result in false
+    fn test_bitwise_or_operation() {
+        let matrix = AtomicFlagMatrix::new((2, 2));
 
-    //     assert_eq!(matrix.bitwise_and_element((0, 0), false), Ok(()));
+        let strategy = BitwiseOrOperation;
 
-    //     assert_eq!(matrix.get((0, 0)), Ok(false));
+        let context = MatrixContext {
+            matrix: &matrix,
 
-    //     // Bitwise OR with true should result in true
+            index: (0, 0),
 
-    //     assert_eq!(matrix.bitwise_or_element((0, 0), true), Ok(()));
+            other: Some(true),
+        };
 
-    //     assert_eq!(matrix.get((0, 0)), Ok(true));
+        strategy.execute(&context).unwrap();
 
-    //     // Bitwise XOR with true should result in false
+        assert_eq!(matrix.get((0, 0)).unwrap(), true);
+    }
 
-    //     assert_eq!(matrix.bitwise_xor_element((0, 0), true), Ok(()));
+    #[test]
 
-    //     assert_eq!(matrix.get((0, 0)), Ok(false));
+    fn test_bitwise_xor_operation() {
+        let matrix = AtomicFlagMatrix::new((2, 2));
 
-    //     // Bitwise NOT should result in true
+        let strategy = BitwiseXorOperation;
 
-    //     assert_eq!(matrix.bitwise_not_element((0, 0)), Ok(()));
+        let context = MatrixContext {
+            matrix: &matrix,
 
-    //     assert_eq!(matrix.get((0, 0)), Ok(true));
-    // }
+            index: (0, 0),
+
+            other: Some(true),
+        };
+
+        strategy.execute(&context).unwrap();
+
+        assert_eq!(matrix.get((0, 0)).unwrap(), true);
+    }
+
+    #[test]
+
+    fn test_bitwise_not_operation() {
+        let matrix = AtomicFlagMatrix::new((2, 2));
+
+        let strategy = BitwiseNotOperation;
+
+        let context = MatrixContext {
+            matrix: &matrix,
+
+            index: (0, 0),
+
+            other: None,
+        };
+
+        strategy.execute(&context).unwrap();
+
+        assert_eq!(matrix.get((0, 0)).unwrap(), true);
+    }
 }
