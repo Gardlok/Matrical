@@ -79,7 +79,6 @@ impl AtomicFlagMatrix {
         if let Some(update) = guard.pop_front() {
             update(&self.data);
         }
-
         Ok(())
     }
 
@@ -111,20 +110,21 @@ impl AtomicFlagMatrix {
     }
 
     pub fn transpose(&self) -> Result<Self, AtomicFlagMatrixError> {
-        let data = self.data.read().unwrap();
-        let transposed_data = Array2::from_shape_fn((data.dim().1, data.dim().0), |(i, j)| {
-            AtomicCell::new(data[(j, i)].load())
-        });
+        // Needs work
+        if let Ok(data) = self.data.read() {
+        
+            let transposed_data = data.t().to_owned();
 
-        Ok(Self {
-            data: Arc::new(RwLock::new(transposed_data)),
-            update_queue: Arc::new(Mutex::new(VecDeque::new())),
-        })
-    }
+            Ok(Self {
+                data: Arc::new(RwLock::new(transposed_data)),
+                update_queue: Arc::new(Mutex::new(VecDeque::new())),
+            })
+        } else { Err(AtomicFlagMatrixError::MutexPoisoned) }
+    
 }
 
 /////////////////////////////////////////////////////////////////////////
-
+ 
 // The MatrixStrategy trait
 pub trait MatrixStrategy {
     type Output = Result<(), AtomicFlagMatrixError>;
@@ -217,8 +217,7 @@ impl MatrixStrategy for GetOperation {
 }
 
 /////////////////////////////////////////////////////////////////////////
-//
-// The `BitwiseAndOperation` strategy performs a bitwise AND operation
+//// The `BitwiseAndOperation` strategy performs a bitwise AND operation
 // on the value at the given index in the matrix and the provided value.
 //
 pub struct BitwiseAndOperation;
@@ -240,7 +239,9 @@ impl MatrixStrategy for BitwiseAndOperation {
     }
 }
 
-/// The `BitwiseOrOperation` strategy performs a bitwise OR operation on the value at the given index in the matrix and the provided value.
+/////////////////////////////////////////////////////////////////////////
+/// The `BitwiseOrOperation` strategy performs a bitwise OR operation on 
+/// the value at the given index in the matrix and the provided value.
 pub struct BitwiseOrOperation;
 impl MatrixStrategy for BitwiseOrOperation {
     fn execute(
@@ -260,8 +261,10 @@ impl MatrixStrategy for BitwiseOrOperation {
     }
 }
 
-//
-/// The `BitwiseXorOperation` strategy performs a bitwise XOR operation on the value at the given index in the matrix and the provided value.
+
+/////////////////////////////////////////////////////////////////////////
+/// The `BitwiseXorOperation` strategy performs a bitwise XOR operation on
+///  the value at the given index in the matrix and the provided value.
 pub struct BitwiseXorOperation;
 impl MatrixStrategy for BitwiseXorOperation {
     fn execute(
@@ -282,7 +285,8 @@ impl MatrixStrategy for BitwiseXorOperation {
 }
 
 //
-/// The `BitwiseNotOperation` strategy performs a bitwise NOT operation on the value at the given index in the matrix.
+/// The `BitwiseNotOperation` strategy performs a bitwise NOT operation on
+///  the value at the given index in the matrix.
 pub struct BitwiseNotOperation;
 impl MatrixStrategy for BitwiseNotOperation {
     fn execute(
@@ -295,7 +299,6 @@ impl MatrixStrategy for BitwiseNotOperation {
             Err(AtomicFlagMatrixError::IndexOutOfBounds)
         } else {
             let value = !matrix.data[index].load();
-
             matrix.data[index].store(value);
 
             Ok(())
@@ -310,7 +313,6 @@ pub struct ViewOperation {
     top_left: (usize, usize),
     bottom_right: (usize, usize),
 }
-
 impl ViewOperation {
     // Create a new ViewOperation with the given coordinates
     pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
@@ -359,36 +361,31 @@ pub enum AtomicFlagMatrixError {
 }
 
 // An AtomicFlagMatrixError is returned when an operation on an AtomicFlagMatrix fails.
-impl std::error::Error for AtomicFlagMatrixError {}
-
-impl std::fmt::Display for AtomicFlagMatrixError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
+impl fmt::Display for AtomicFlagMatrixError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AtomicFlagMatrixError::MutexPoisoned => write!(f, "Mutex was poisoned"),
             AtomicFlagMatrixError::IndexOutOfBounds => write!(f, "Index out of bounds"),
-            AtomicFlagMatrixError::MutexPoisoned => write!(f, "Mutex poisoned"),
         }
     }
-}
-
+}}
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // Transposing
 //
+
 pub struct TransposedMatrix<'a> {
     matrix: &'a AtomicFlagMatrix,
 }
-
 impl<'a> TransposedMatrix<'a> {
     pub fn new(matrix: &'a AtomicFlagMatrix) -> Self {
         Self { matrix }
     }
-
     pub fn get(&self, index: (usize, usize)) -> Result<bool, AtomicFlagMatrixError> {
         self.matrix.get((index.1, index.0))
     }
-
     pub fn set(&self, index: (usize, usize), value: bool) -> Result<bool, AtomicFlagMatrixError> {
         self.matrix
-            .execute_operation(self.matrix.execute_operation(index.1, index.0), value)
+            .execute_operation(index, Some(value), &SetOperation)
     }
 }
