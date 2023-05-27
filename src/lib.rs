@@ -66,8 +66,16 @@ impl AtomicFlagMatrix {
         index: (usize, usize),
         other: Option<bool>,
     ) -> Result<bool, AtomicFlagMatrixError> {
+        // Check if the index is within the bounds of the matrix.
+        if index.0 >= self.data.dim().0 || index.1 >= self.data.dim().1 {
+            return Err(AtomicFlagMatrixError::IndexOutOfBounds);
+        }
+    
+        // Execute the operation and propagate any errors upwards with `?`.
         operation.execute(self, index, other)
     }
+
+    // Set the value at the given index in the matrix
 
     // Apply the next update in the queue to the matrix
     pub fn apply_next_update(&self) -> Result<(), AtomicFlagMatrixError> {
@@ -90,7 +98,9 @@ impl AtomicFlagMatrix {
         let mut guard = self
             .update_queue
             .lock()
-            .map_err(|_| AtomicFlagMatrixError::MutexPoisoned)?;
+            .map_err(|_| {
+                AtomicFlagMatrixError::MutexPoisoned
+            })?;
         guard.push_back(update);
 
         Ok(())
@@ -105,14 +115,16 @@ impl AtomicFlagMatrix {
         while let Some(update) = guard.pop_front() {
             update(&self.data);
         }
-
         Ok(())
     }
 
+    // Transpose the matrix
     pub fn transpose(&self) -> Result<Self, AtomicFlagMatrixError> {
-        // Needs work
+        // we return early with an Err if the index is out of 
+        // bounds, and we use the ? operator to propagate any errors
         if let Ok(data) = self.data.read() {
         
+            // Utilizing the transpose method from ndarray
             let transposed_data = data.t().to_owned();
 
             Ok(Self {
@@ -369,6 +381,32 @@ impl fmt::Display for AtomicFlagMatrixError {
         }
     }
 }}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//
+// Sum of all elements
+//
+pub struct SumOperation;
+impl MatrixOperation for SumOperation {
+    fn execute(
+        &self,
+        matrix: &AtomicFlagMatrix,
+        _index: (usize, usize),
+        _other: Option<bool>,
+    ) -> Result<bool, AtomicFlagMatrixError> {
+        let mut sum = 0;
+        for i in 0..matrix.data.dim().0 {
+            for j in 0..matrix.data.dim().1 {
+                sum += matrix.data[(i, j)].load() as i32;
+            }
+        }
+        println!("Sum of all elements: {}", sum);
+        Ok(true)
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // Transposing

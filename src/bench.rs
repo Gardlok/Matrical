@@ -4,6 +4,7 @@ use test::Bencher;
 
 #[cfg(test)]
 mod bench {
+    #[cfg(test)]
 
     use super::*;
     extern crate test;
@@ -26,77 +27,20 @@ mod bench {
                     set_operation.index = (i, j);
                     get_operation.index = (i, j);
                     matrix
-                        .execute_operation(Box::new(set_operation.clone()), None), None)
+                        .handle_operation(Box::new(set_operation.clone()))
                         .unwrap();
-
                     AtomicFlagMatrix::new((1000, 1000))
                         .handle_operation(Box::new(get_operation.clone()))
                         .unwrap();
                 }
+
             }
+
         });
-    }
-
-    // Add more benchmarks for other operations here...
+        b.bytes = 1000 * 1000 * 2;
+        b.iter(|| { });
+        b.bytes = 1000 * 1000 * 2;
+        b.iter(|| { });  
+    }  
 }
-/*
-
-#[bench]
-fn bench_bitwise_operations(b: &mut Bencher) {
-    let matrix = AtomicFlagMatrix::new((1000, 1000));
-
-    let set_operation = SetOperation {
-        index: (0, 0),
-        value: true,
-    };
-
-    let and_operation = AndOperation {
-        index: (0, 0),
-        other: true,
-    };
-
-    let or_operation = OrOperation {
-        index: (0, 0),
-        other: true,
-    };
-
-    let xor_operation = XorOperation {
-        index: (0, 0),
-        other: true,
-    };
-
-    let not_operation = NotOperation { index: (0, 0) };
-
-    b.iter(|| {
-        for i in 0..1000 {
-            for j in 0..1000 {
-                set_operation.index = (i, j);
-                and_operation.index = (i, j);
-                or_operation.index = (i, j);
-                xor_operation.index = (i, j);
-                not_operation.index = (i, j);
-
-                matrix
-                    .handle_operation(Box::new(set_operation.clone()))
-                    .unwrap();
-
-                matrix
-                    .handle_operation(Box::new(and_operation.clone()))
-                    .unwrap();
-
-                matrix
-                    .handle_operation(Box::new(or_operation.clone()))
-                    .unwrap();
-
-                matrix
-                    .handle_operation(Box::new(xor_operation.clone()))
-                    .unwrap();
-
-                matrix
-                    .handle_operation(Box::new(not_operation.clone()))
-                    .unwrap();
-            }
-        }
-    });
-}
-*/
+ 
