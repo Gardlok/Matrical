@@ -88,7 +88,7 @@ pub struct ViewOperation;
 
 impl MatrixOperation for ViewOperation {
     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
+        unimplemented!()
     }
 }
 
@@ -111,17 +111,17 @@ impl ViewOperation {
 impl MatrixStrategy for ViewOperation {
     fn execute(
         &self,
-        matrix: &AtomicBoolMatrix,
+        matrix: &Matrix,
         _index: Option<(usize, usize)>,
         _other: Option<bool>,
-    ) -> Result<(), AtomicBoolMatrixError> {
+    ) -> Result<(), MatricalError> {
         // Check if the coordinates are within the matrix dimensions
         if self.top_left.0 >= matrix.data.dim().0
             || self.top_left.1 >= matrix.data.dim().1
             || self.bottom_right.0 >= matrix.data.dim().0
             || self.bottom_right.1 >= matrix.data.dim().1
         {
-            return Err(AtomicBoolMatrixError::IndexOutOfBounds);
+            return Err(MatricalError::IndexOutOfBounds);
         }
 
         // Iterate over the sub-matrix and print the values
@@ -155,6 +155,7 @@ pub struct StateGetOperation;
 impl MatrixOperation for StateGetOperation {
     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
         // Implement the MatrixOperation trait
+        
     }
 }
 
@@ -233,84 +234,64 @@ impl<V> Matrix {
     }
 }
 
-fn main() {
-    let mut matrix = Matrix::new((5, 5), Box::new(ViewOperation));
-    matrix.execute_operation().unwrap();
 
-    matrix.set_operation(Box::new(StateSetOperation));
-    matrix.execute_operation().unwrap();
-}
 
-// State
-pub struct StateSetOperation;
-pub struct StateGetOperation;
-pub struct StateToggleOperation;
 
-// Element Arithmetics
-pub struct BitwiseAndOperation;
-pub struct BitwiseOrOperation;
-pub struct BitwiseXorOperation;
-pub struct BitwiseNotOperation;
-
-// Attributes
-pub struct CreateAttributeOperation;
-pub struct GetAttributeOperation;
-pub struct RemoveAttributeOperation;
 
 // Functors are functions that operate on the matrix
 // Execute a function on the value of a Element
-pub trait FunctorHandler<T, F> where F: Fn() -> Sync + Send {
-    fn execute(&self, context: &MatrixContext<T>) -> Result<T, MatricalError>;
-}
-pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(), MatricalError>
-where
-    H: FunctorHandler<T, F>
-{
-    let result: Result<T, _> = handler.compute(&context.);
-    match result {
-        Ok(value) => {
-            context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
-                matrix.set_value(value);
-            }));
-            Ok(())
-        }
-        Err(error) => Err(error),
-    }
+// pub trait FunctorHandler<T, F> where F: Fn() -> Sync + Send {
+//     fn execute(&self, context: &MatrixContext<T>) -> Result<T, MatricalError>;
+// }
+// pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(), MatricalError>
+// where
+//     H: FunctorHandler<T, F>
+// {
+//     let result: Result<T, _> = handler.compute(&context.);
+//     match result {
+//         Ok(value) => {
+//             context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
+//                 matrix.set_value(value);
+//             }));
+//             Ok(())
+//         }
+//         Err(error) => Err(error),
+//     }
 
-}
+// }
 
-pub fn from_enum_matrix(matrix: Array2<MatrixElement>) -> Self {
-    let rows = matrix.nrows();
-    let cols = matrix.ncols();
-    let mut data = Vec::with_capacity(rows * cols);
-    for element in matrix.iter() {
-        let val = match element {
-            MatrixElement::VariantA => true,  // or whatever logic you want
-            MatrixElement::VariantB => false, // or whatever logic you want
-            MatrixElement::VariantC => true,  // or whatever logic you want
-            // ...
-        };
-        data.push(AtomicBool::new(val));
-    }
-    AttributeMatrix {
-        matrix: ArcSwap::new(Arc::new(Array2::from_shape_vec((rows, cols), data).unwrap())),
-    }
-}
+// pub fn from_enum_matrix(matrix: Array2<MatrixElement>) -> Self {
+//     let rows = matrix.nrows();
+//     let cols = matrix.ncols();
+//     let mut data = Vec::with_capacity(rows * cols);
+//     for element in matrix.iter() {
+//         let val = match element {
+//             MatrixElement::VariantA => true,  // or whatever logic you want
+//             MatrixElement::VariantB => false, // or whatever logic you want
+//             MatrixElement::VariantC => true,  // or whatever logic you want
+//             // ...
+//         };
+//         data.push(AtomicBool::new(val));
+//     }
+//     AttributeMatrix {
+//         matrix: ArcSwap::new(Arc::new(Array2::from_shape_vec((rows, cols), data).unwrap())),
+//     }
+// }
 
-// example of a method for updating the matrix using parallel processing
-pub fn parallel_update<F>(&self, update_func: F)
-where
-    F: Fn(usize, usize) -> bool + Sync,
-{
-    let rows = self.matrix.load().rows();
-    let cols = self.matrix.load().cols();
-    (0..rows).into_par_iter().for_each(|row| {
-        for col in 0..cols {
-            let new_val = update_func(row, col);
-            self.update_value(row, col, new_val);
-        }
-    });
-}
+// // example of a method for updating the matrix using parallel processing
+// pub fn parallel_update<F>(&self, update_func: F)
+// where
+//     F: Fn(usize, usize) -> bool + Sync,
+// {
+//     let rows = self.matrix.load().rows();
+//     let cols = self.matrix.load().cols();
+//     (0..rows).into_par_iter().for_each(|row| {
+//         for col in 0..cols {
+//             let new_val = update_func(row, col);
+//             self.update_value(row, col, new_val);
+//         }
+//     });
+// }
 
 // mod Mask {
 //     //////////////////////////////////////////////////
@@ -421,3 +402,52 @@ impl Handler<Error> for ErrorHandler {
     }
 }
 
+use surrealdb::Datastore;
+use surrealdb::Session;
+use surrealdb::Value;
+use surrealdb::Error;
+
+pub struct SurrealDBAdapter {
+    datastore: Datastore,
+    session: Session,
+}
+
+impl SurrealDBAdapter {
+    pub async fn new() -> Result<Self, Error> {
+        let datastore = Datastore::new("memory").await?;
+        let session = Session::for_kv().with_ns("test").with_db("test");
+        Ok(SurrealDBAdapter {
+            datastore,
+            session,
+        })
+    }
+
+    pub async fn run_query(&self, sql: &str) -> Result<Vec<Value>, Error> {
+        let result = self.datastore.execute(sql, &self.session, None, false).await?;
+        Ok(result.into_iter().map(|res| res.result).collect())
+    }
+
+    pub fn get_matrix_value(&self, row: usize, col: usize) -> Result<bool, MatricalError> {
+        let sql = format!("SELECT matrix[{}][{}] AS value FROM matrical;", row, col);
+        let result = self.run_query(&sql)?;
+        if let Some(value) = result.first() {
+            if let Value::Bool(b) = value {
+                Ok(*b)
+            } else {
+                Err(MatricalError::ValueError)
+            }
+        } else {
+            Err(MatricalError::NotFoundError)
+        }
+    }
+
+    pub fn set_matrix_value(&mut self, row: usize, col: usize, value: bool) -> Result<(), MatricalError> {
+        let sql = format!("UPDATE matrical SET matrix[{}][{}] = {};", row, col, value);
+        self.run_query(&sql)?;
+        Ok(())
+    }
+
+    // Implement the remaining matrix operations methods
+    // ...
+
+}
