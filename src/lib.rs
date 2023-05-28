@@ -10,22 +10,143 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::sync::{Arc, Mutex};
+use std::error::Error;
 
 use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::ArrayQueue;
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::sync::ShardedLock;
 
+use surrealdb::Datastore;
+use surrealdb::Session;
+use surrealdb::Value;
+use surrealdb::Error;
 
 
 
+// Modify the DependencyInjectionContainer struct to include the strategies and parameterized_queries fields:
+
+struct DependencyInjectionContainer {
+    strategies: Vec<Box<dyn Strategy>>,
+    parameterized_queries: Vec<ParameterizedQuery>,
+}
+// Implement the Strategy trait and its related traits (FilterStrategy, SortStrategy, AggregateStrategy) as shown in your code:
+
+//
+trait Strategy {
+    fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String>;
+    fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
+    fn result(&self) -> Result<(), String>;
+}
+// 
+trait FilterStrategy: Strategy {
+    fn filter(&self, data: &HashMap<String, String>) -> Result<(), String>;
+}
+
+trait SortStrategy: Strategy {
+    fn sort(&self, data: &HashMap<String, String>) -> Result<(), String>;
+}
+
+trait AggregateStrategy: Strategy {
+    fn aggregate(&self, data: &HashMap<String, String>) -> Result<(), String>;
+}
+//Update the DependencyInjectionContainer implementation to include methods for adding strategies and parameterized queries:
+
+impl DependencyInjectionContainer {
+    // ...
+
+    fn add_strategy(&mut self, strategy: Box<dyn Strategy>) {
+        self.strategies.push(strategy);
+    }
+
+    fn add_parameterized_query(&mut self, query: ParameterizedQuery) {
+        self.parameterized_queries.push(query);
+    }
+}
+// Modify the SurrealDBAdapter implementation to use the dependency injection container and execute the strategies accordingly:
+
+impl SurrealDBAdapter {
+    // ...
 
 
-pub struct AtomicBool { atomic_bool: AtomicCell<bool> }
-pub struct Attribute { _attri: PhantomData<Arc<dyn Fn()>> }
-pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
-pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
-pub struct Matrix<V> { matrix: ArrayQueue<Element<V>>, _context: MatrixContext }
+}
+// Use the execute_strategies method within your matrix operation methods to apply the desired strategies:
+
+pub fn get_matrix_value(&self, row: usize, col: usize) -> Result<bool, MatricalError> {
+    // Get data from SurrealDB or other source
+    let data = HashMap::new();  // Placeholder, TODO: replace with actual data retrieval
+
+    // Apply strategies
+    self.execute_strategies(&data)?;
+
+
+    Ok(value)
+}
+
+pub fn set_matrix_value(&mut self, row: usize, col: usize, value: bool) -> Result<(), MatricalError> {
+    // Get data from SurrealDB or other source
+    let data = HashMap::new();  // Placeholder, replace with actual data retrieval
+
+    // Apply strategies
+    self.execute_strategies(&data)?;
+
+
+    Ok(())
+}
+/////////////////////////////////////////////////////////
+pub struct SurrealDBAdapter {
+    datastore: Datastore,
+    session: Session,
+    di_container: DependencyInjectionContainer,
+}
+
+impl SurrealDBAdapter {
+    pub async fn new() -> Result<Self, MatricalError> {
+        let datastore = Datastore::new("memory").await?;
+        let session = Session::for_kv().with_ns("test").with_db("test");
+        Ok(SurrealDBAdapter {
+            datastore,
+            session,
+        })
+    }
+
+    pub async fn run_query(&self, sql: &str) -> Result<Vec<Value>, MatricalError> {
+        let result = self.datastore.execute(sql, &self.session, None, false).await?;
+        Ok(result.into_iter().map(|res| res.result).collect())
+    }
+
+    pub fn get_matrix_value(&self, row: usize, col: usize) -> Result<bool, MatricalError> {
+        let sql = format!("SELECT matrix[{}][{}] AS value FROM matrical;", row, col);
+        let result = self.run_query(&sql)?;
+        if let Some(value) = result.first() {
+            if let Value::Bool(b) = value {
+                Ok(*b)
+            } else {
+                Err(MatricalError::ValueError)
+            }
+        } else {
+            Err(MatricalError::NotFoundError)
+        }
+    }
+
+    pub fn set_matrix_value(&mut self, row: usize, col: usize, value: bool) -> Result<(), MatricalError> {
+        let sql = format!("UPDATE matrical SET matrix[{}][{}] = {};", row, col, value);
+        self.run_query(&sql)?;
+        Ok(())
+    }
+
+    pub fn execute_strategies(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        for strategy in &self.di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+}
+
+
+
 
 // The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
 impl<V> Matrix<V> {
@@ -47,7 +168,16 @@ impl<V> Matrix<V> {
     pub fn execute_operation(&self) -> Result<(), MatricalError> {
         self._context.operation.execute(&self._context)
     }
+    // Use the execute_strategies method within your matrix operation methods to apply the desired strategies:
+
+
 }
+
+pub struct AtomicBool { atomic_bool: AtomicCell<bool> }
+pub struct Attribute { _attri: PhantomData<Arc<dyn Fn()>> }
+pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
+pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
+pub struct Matrix<V> { matrix: ArrayQueue<Element<V>>, _context: MatrixContext }
 
 pub struct AttributeContext {
     pub attri: Option<SegQueue<dyn Any + Send + Sync>>,
@@ -73,6 +203,29 @@ pub trait MatrixOperation {
     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError>;
 }
 
+
+
+
+pub fn get_matrix_value(&self, row: usize, col: usize) -> Result<bool, MatricalError> {
+    // Get data from SurrealDB or other source
+    let data = HashMap::new();  // Placeholder, TODO: replace with actual data retrieval
+    // Apply strategies
+    self.execute_strategies(&data)?;
+    Ok(value)
+}
+
+pub fn set_matrix_value(&mut self, row: usize, col: usize, value: bool) -> Result<(), MatricalError> {
+    // Get data from SurrealDB or other source
+    let data = HashMap::new();  // Placeholder, replace with actual data retrieval
+    // Apply strategies
+    self.execute_strategies(&data)?;
+    Ok(())
+}
+
+
+
+
+
 // Element Operation
 pub trait ElementOperation {
     fn execute(&self, context: &ElementContext) -> Result<(), MatricalError>;
@@ -83,8 +236,7 @@ pub trait AttributeOperation {
     fn execute(&self, context: &AttributeContext) -> Result<(), MatricalError>;
 }
 
-// How to look at the matrix
-pub struct ViewOperation;
+
 
 impl MatrixOperation for ViewOperation {
     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
@@ -108,120 +260,120 @@ impl ViewOperation {
     }
 }
 
-impl MatrixStrategy for ViewOperation {
-    fn execute(
-        &self,
-        matrix: &Matrix,
-        _index: Option<(usize, usize)>,
-        _other: Option<bool>,
-    ) -> Result<(), MatricalError> {
-        // Check if the coordinates are within the matrix dimensions
-        if self.top_left.0 >= matrix.data.dim().0
-            || self.top_left.1 >= matrix.data.dim().1
-            || self.bottom_right.0 >= matrix.data.dim().0
-            || self.bottom_right.1 >= matrix.data.dim().1
-        {
-            return Err(MatricalError::IndexOutOfBounds);
-        }
+// impl MatrixStrategy for ViewOperation {
+//     fn execute(
+//         &self,
+//         matrix: &Matrix,
+//         _index: Option<(usize, usize)>,
+//         _other: Option<bool>,
+//     ) -> Result<(), MatricalError> {
+//         // Check if the coordinates are within the matrix dimensions
+//         if self.top_left.0 >= matrix.data.dim().0
+//             || self.top_left.1 >= matrix.data.dim().1
+//             || self.bottom_right.0 >= matrix.data.dim().0
+//             || self.bottom_right.1 >= matrix.data.dim().1
+//         {
+//             return Err(MatricalError::IndexOutOfBounds);
+//         }
 
-        // Iterate over the sub-matrix and print the values
-        for i in self.top_left.0..=self.bottom_right.0 {
-            for j in self.top_left.1..=self.bottom_right.1 {
-                let value = matrix.data[(i, j)].load();
-                println!("Value at ({}, {}): {}", i, j, value);
-            }
-        }
-        Ok(())
-    }
-}
+//         // Iterate over the sub-matrix and print the values
+//         for i in self.top_left.0..=self.bottom_right.0 {
+//             for j in self.top_left.1..=self.bottom_right.1 {
+//                 let value = matrix.data[(i, j)].load();
+//                 println!("Value at ({}, {}): {}", i, j, value);
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
-// Set the state
-pub struct StateSetOperation;
-//
-impl MatrixOperation for StateSetOperation {
-    fn execute(&self, context: &MatrixContext, value: AtomicBool) -> Result<(), MatricalError> {
-        // Here we'll set all the states to true
-        for row in &mut context.matrix {
-            for element in row {
-                element.state.atomic_bool.store(value);
-            }
-        }
-        Ok(())
-    }
-}
+// // Set the state
+// pub struct StateSetOperation;
+// //
+// impl MatrixOperation for StateSetOperation {
+//     fn execute(&self, context: &MatrixContext, value: AtomicBool) -> Result<(), MatricalError> {
+//         // Here we'll set all the states to true
+//         for row in &mut context.matrix {
+//             for element in row {
+//                 element.state.atomic_bool.store(value);
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
-pub struct StateGetOperation;
+// pub struct StateGetOperation;
 
-impl MatrixOperation for StateGetOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
+// impl MatrixOperation for StateGetOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
         
-    }
-}
+//     }
+// }
 
-pub struct StateToggleOperation;
+// pub struct StateToggleOperation;
 
-impl MatrixOperation for StateToggleOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for StateToggleOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct BitwiseAndOperation;
+// pub struct BitwiseAndOperation;
 
-impl MatrixOperation for BitwiseAndOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for BitwiseAndOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct BitwiseOrOperation;
+// pub struct BitwiseOrOperation;
 
-impl MatrixOperation for BitwiseOrOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for BitwiseOrOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct BitwiseXorOperation;
+// pub struct BitwiseXorOperation;
 
-impl MatrixOperation for BitwiseXorOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for BitwiseXorOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct BitwiseNotOperation;
+// pub struct BitwiseNotOperation;
 
-impl MatrixOperation for BitwiseNotOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for BitwiseNotOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct CreateAttributeOperation;
+// pub struct CreateAttributeOperation;
 
-impl MatrixOperation for CreateAttributeOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for CreateAttributeOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct GetAttributeOperation;
+// pub struct GetAttributeOperation;
 
-impl MatrixOperation for GetAttributeOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for GetAttributeOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
-pub struct RemoveAttributeOperation;
+// pub struct RemoveAttributeOperation;
 
-impl MatrixOperation for RemoveAttributeOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        // Implement the MatrixOperation trait
-    }
-}
+// impl MatrixOperation for RemoveAttributeOperation {
+//     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+//         // Implement the MatrixOperation trait
+//     }
+// }
 
 // The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
 impl<V> Matrix {
@@ -240,25 +392,25 @@ impl<V> Matrix {
 
 // Functors are functions that operate on the matrix
 // Execute a function on the value of a Element
-// pub trait FunctorHandler<T, F> where F: Fn() -> Sync + Send {
-//     fn execute(&self, context: &MatrixContext<T>) -> Result<T, MatricalError>;
-// }
-// pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(), MatricalError>
-// where
-//     H: FunctorHandler<T, F>
-// {
-//     let result: Result<T, _> = handler.compute(&context.);
-//     match result {
-//         Ok(value) => {
-//             context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
-//                 matrix.set_value(value);
-//             }));
-//             Ok(())
-//         }
-//         Err(error) => Err(error),
-//     }
+pub trait FunctorHandler<T, F> where F: Fn() -> Sync + Send {
+    fn execute(&self, context: &MatrixContext<T>) -> Result<T, MatricalError>;
+}
+pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(), MatricalError>
+where
+    H: FunctorHandler<T, F>
+{
+    let result: Result<T, _> = handler.compute(&context.);
+    match result {
+        Ok(value) => {
+            context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
+                matrix.set_value(value);
+            }));
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
 
-// }
+}
 
 // pub fn from_enum_matrix(matrix: Array2<MatrixElement>) -> Self {
 //     let rows = matrix.nrows();

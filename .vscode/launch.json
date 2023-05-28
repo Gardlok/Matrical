@@ -7,19 +7,8 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'matrical'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=matrical"
-                ],
-                "filter": {
-                    "name": "matrical",
-                    "kind": "lib"
-                }
-            },
+            "name": "Debug",
+            "program": "${workspaceFolder}/workspaces/Matrical<executable file>",
             "args": [],
             "cwd": "${workspaceFolder}"
         }
