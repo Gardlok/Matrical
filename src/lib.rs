@@ -1,385 +1,96 @@
-#![feature(test)]
-#![feature(associated_type_defaults)]
-use ndarray::{Array2, Data, DataMut, Shape};
-use ndarray::{ArrayBase, Axis, Dim, Ix2, OwnedRepr};
-use rayon::iter::plumbing::{
-    bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer, UnindexedProducer,
-};
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    IntoParallelRefMutIterator, ParallelIterator,
-};
+use crossbeam::epoch::Atomic;
+use dashmap::DashMap;
+
+// use ndarray::{Array2, Data, DataMut, Shape};
+// use ndarray::{ArrayBase, Axis, Dim, Ix2, OwnedRepr};
+use serde::de::value::U32Deserializer;
+use std::any::{Any, TypeId};
+
+use std::fmt;
+use std::marker::PhantomData;
+use std::ops::Range;
+use std::sync::{Arc, Mutex};
 
 use crossbeam::atomic::AtomicCell;
-use std::collections::VecDeque;
-use std::ops::Range;
-use std::sync::Mutex;
-use std::fmt;
-use std::sync::Arc;
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
-// mod bench;
-// #[cfg(test)]
-// mod tests;
+use crossbeam_queue::ArrayQueue;
+use crossbeam_queue::SegQueue;
+use crossbeam_utils::sync::ShardedLock;
 
-// The Strategy trait declares operations common to all versions of some algorithm.
+
+
+
+
+
+pub struct AtomicBool { atomic_bool: AtomicCell<bool> }
+pub struct Attribute { _attri: PhantomData<Arc<dyn Fn()>> }
+pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
+pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
+pub struct Matrix<V> { matrix: ArrayQueue<Element<V>>, _context: MatrixContext }
+
+// The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
+impl<V> Matrix<V> {
+   pub fn new() -> Self {
+        Self {
+            matrix: ArrayQueue::new(100),
+            _context: MatrixContext {
+                attributes: HashMap::new(),
+                functors: HashMap::new(),
+                update_queue: SegQueue::new(),
+            },
+        }
+    }
+
+    pub fn set_operation(&mut self, operation: Box<dyn MatrixOperation>) {
+        self._context.operation = operation;
+    }
+
+    pub fn execute_operation(&self) -> Result<(), MatricalError> {
+        self._context.operation.execute(&self._context)
+    }
+}
+
+pub struct AttributeContext {
+    pub attri: Option<SegQueue<dyn Any + Send + Sync>>,
+}
+
+pub struct ElementContext<V> {
+    pub state: AtomicBool,
+    pub x_idx: AtomicCell<usize>,
+    pub y_idx: AtomicCell<usize>,
+    pub attri: Option<SegQueue<Attribute>>,
+    pub workq: SegQueue<dyn Fn(MatrixOperation) + Send + Sync>,  // Worker, stealer?
+    pub value: Option<V>,  // Not thread safe
+}
+
+pub struct MatrixContext {
+    attributes: HashMap<Any::TypeId<Attribute>, Arc<dyn Any + Send + Sync>>,
+    functors: HashMap<usize, Arc<dyn Fn( Any + Send + Sync )>>,
+
+}
+
+// Matrix Operation
 pub trait MatrixOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Result<bool, AtomicBoolMatrixError>;
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError>;
 }
 
-
-
-struct MyOperation;
-impl Operation for MyOperation {
-    fn execute(&self, matrix: &AtomicBoolMatrix, index: (usize, usize), other: Option<bool>) -> Result<bool, AtomicBoolMatrixError> {
-        // Perform some operation on the matrix...
-        Ok(true)
-    }
+// Element Operation
+pub trait ElementOperation {
+    fn execute(&self, context: &ElementContext) -> Result<(), MatricalError>;
 }
 
-
-
-
-///////////////////////////////////////////////////////////////////////
-// A matrix of atomic bolean flags with a queue for lazy updates
-pub struct AtomicBoolMatrix {
-    // The data stored in the matrix
-    data: Array2<AtomicCell<bool>>,
-    // The attributes of the matrix
-    attributes: HashMap<TypeId, Arc<dyn Any + Send + Sync>>,
-    // The queue of updates to be applied to the matrix
-    update_queue: Mutex<VecDeque<Box<dyn Fn(&Array2<AtomicCell<bool>>) + Send>>>,
+// Attribute Operation
+pub trait AttributeOperation {
+    fn execute(&self, context: &AttributeContext) -> Result<(), MatricalError>;
 }
 
+// How to look at the matrix
+pub struct ViewOperation;
 
-impl std::ops::Deref for AtomicBoolMatrix {
-    type Target = HashMap<TypeId, Arc<dyn Any + Send + Sync>>;
-    fn deref(&self) -> &Self::Target {
-        &self.attributes
+impl MatrixOperation for ViewOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
     }
 }
-
-/////////////////////////////////////////////////////////////////////////
-
-// The
-//
-impl AtomicBoolMatrix {
-
-    // Create a new AtomicBoolMatrix with the given dimensions
-    pub fn new(dim: (usize, usize)) -> Self {
-        let data = Array2::from_shape_fn(dim, |_| AtomicCell::new(false));
-        let update_queue = Mutex::new(VecDeque::new());
-        let attributes = HashMap::new();
-        Self { data, update_queue, attributes }
-    }
-
-    // Create a new AtomicBoolMatrix with the given dimensions and data
-    pub fn new_with_data(data: Array2<AtomicCell<bool>>) -> Self {
-        let update_queue = Mutex::new(VecDeque::new());
-        let attributes = HashMap::new();
-        Self { data, update_queue, attributes }
-    }
-
-    
-    
-    pub fn add_attribute<T: Any + Send + Sync>(&mut self, attribute: T) {
-        self.attributes.insert(TypeId::of::<T>(), Arc::new(attribute));
-    }
-
-    pub fn get_attribute<T: Any + Send + Sync>(&self) -> Option<&T> {
-        self.attributes.get(&TypeId::of::<T>()).and_then(|arc| arc.downcast_ref::<T>())
-    }
-
-    pub fn remove_attribute<T: Any + Send + Sync>(&mut self) {
-        self.attributes.remove(&TypeId::of::<T>());
-    }
-    // pub fn execute_operation(
-    //     &self,
-    //     operation: Box<dyn MatrixOperation>,
-    //     index: (usize, usize),
-    //     other: Option<bool>,
-    // ) -> Result<bool, AtomicBoolMatrixError> {
-    //     // Check if the index is within the bounds of the matrix.
-    //     if index.0 >= self.data.dim().0 || index.1 >= self.data.dim().1 {
-    //         return Err(AtomicBoolMatrixError::IndexOutOfBounds);
-    //     }
-    pub fn execute_operation(
-        &self,
-        operation: Box<dyn Operation>,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Result<bool, AtomicBoolMatrixError> {
-        operation.execute(self, index, other)
-    }
-
-    //
-
-
-
-
-
-
-
-
-    // Get the value at the given index in the matrix
-    pub fn get(&self, index: (usize, usize)) -> Result<bool, AtomicBoolMatrixError> {
-        if index.0 >= self.data.dim().0 || index.1 >= self.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            Ok(self.data[index].load())
-        }
-    }
-
-    // pub fn execute_operation(
-    //     &self,
-    //     operation: Box<dyn MatrixOperation>,
-    //     index: (usize, usize),
-    //     other: Option<bool>,
-    // ) -> Result<bool, AtomicBoolMatrixError> {
-    //     // Check if the index is within the bounds of the matrix.
-    //     if index.0 >= self.data.dim().0 || index.1 >= self.data.dim().1 {
-    //         return Err(AtomicBoolMatrixError::IndexOutOfBounds);
-    //     }
-    
-    //     // Execute the operation and propagate any errors upwards with `?`.
-    //     operation.execute(self, index, other)
-    // }
-
-    // Set the value at the given index in the matrix
-
-    // Apply the next update in the queue to the matrix
-    pub fn apply_next_update(&self) -> Result<(), AtomicBoolMatrixError> {
-        let mut guard = self
-            .update_queue
-            .lock()
-            .map_err(|_| AtomicBoolMatrixError::MutexPoisoned)?;
-
-        if let Some(update) = guard.pop_front() {
-            update(&self.data);
-        }
-        Ok(())
-    }
-
-    // Queue an update to be applied to the matrix
-    pub fn queue_update(
-        &self,
-        update: Box<dyn Fn(&Array2<AtomicCell<bool>>) + Send>,
-    ) -> Result<(), AtomicBoolMatrixError> {
-        let mut guard = self
-            .update_queue
-            .lock()
-            .map_err(|_| {
-                AtomicBoolMatrixError::MutexPoisoned
-            })?;
-        guard.push_back(update);
-
-        Ok(())
-    }
-
-    // Apply all updates in the queue to the matrix
-    pub fn execute_all_updates(&self) -> Result<(), AtomicBoolMatrixError> {
-        let mut guard = self
-            .update_queue
-            .lock()
-            .map_err(|_| AtomicBoolMatrixError::MutexPoisoned)?;
-        while let Some(update) = guard.pop_front() {
-            update(&self.data);
-        }
-        Ok(())
-    }
-
-   
-}
-
-/////////////////////////////////////////////////////////////////////////
- 
-// The MatrixStrategy trait
-pub trait MatrixStrategy {
-    type Output;
-
-    fn execute(
-        &self,
-        matrix: &mut AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Self::Output;
-}
-
-// The Extractor trait
-pub trait Extractor {
-    fn extract(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-    ) -> Result<bool, AtomicBoolMatrixError>;
-}
-
-impl Extractor for GetOperation {
-    fn extract(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-    ) -> Result<bool, AtomicBoolMatrixError> {
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            let value = matrix.data[index].load();
-
-            Ok(value)
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////
-// The SetOperation is a strategy for setting a value at a specific
-// index in the matrix.
-//
-pub struct SetOperation;
-impl MatrixStrategy for SetOperation {
-    type Output = Result<(), AtomicBoolMatrixError>;
-
-    fn execute(
-        &self,
-        matrix: &mut AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Self::Output {
-        // Check if the index is within the bounds of the matrix.
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            // If 'other' is Some(value), set the value at the given index in the matrix.
-            // If 'other' is None, return an error because a value is required for this operation.
-            if let Some(value) = other {
-                matrix.data[index].store(value);
-                Ok(())
-            } else {
-                Err(AtomicBoolMatrixError::MissingOperand)
-            }
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////
-// The GetOperation is a strategy for getting a value at a specific index in the matrix.
-//
-pub struct GetOperation;
-impl MatrixStrategy for GetOperation {
-    type Output = Result<bool, AtomicBoolMatrixError>;
-
-    fn execute(
-        &self,
-        matrix: &mut AtomicBoolMatrix,
-        index: (usize, usize),
-        _other: Option<bool>,
-    ) -> Self::Output {
-        // Check if the index is within the bounds of the matrix.
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            // Get the value at the given index in the matrix.
-            let value = matrix.data[index].load();
-
-            Ok(value)
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////
-//// The `BitwiseAndOperation` strategy performs a bitwise AND operation
-// on the value at the given index in the matrix and the provided value.
-//
-pub struct BitwiseAndOperation;
-impl MatrixStrategy for BitwiseAndOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Result<(), AtomicBoolMatrixError> {
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            let other = other.ok_or(AtomicBoolMatrixError::MissingOperand)?;
-            let value = matrix.data[index].load() & other;
-            matrix.data[index].store(value);
-            Ok(())
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////////
-/// The `BitwiseOrOperation` strategy performs a bitwise OR operation on 
-/// the value at the given index in the matrix and the provided value.
-pub struct BitwiseOrOperation;
-impl MatrixStrategy for BitwiseOrOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Result<(), AtomicBoolMatrixError> {
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            let other = other.ok_or(AtomicBoolMatrixError::MissingOperand)?;
-            let value = matrix.data[index].load() | other;
-            matrix.data[index].store(value);
-            Ok(())
-        }
-    }
-}
-
-
-/////////////////////////////////////////////////////////////////////////
-/// The `BitwiseXorOperation` strategy performs a bitwise XOR operation on
-///  the value at the given index in the matrix and the provided value.
-pub struct BitwiseXorOperation;
-impl MatrixStrategy for BitwiseXorOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-        other: Option<bool>,
-    ) -> Result<(), AtomicBoolMatrixError> {
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            let other = other.ok_or(AtomicBoolMatrixError::MissingOperand)?;
-            let value = matrix.data[index].load() ^ other;
-            matrix.data[index].store(value);
-            Ok(())
-        }
-    }
-}
-
-//
-/// The `BitwiseNotOperation` strategy performs a bitwise NOT operation on
-///  the value at the given index in the matrix.
-pub struct BitwiseNotOperation;
-impl MatrixStrategy for BitwiseNotOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        index: (usize, usize),
-        _other: Option<bool>,
-    ) -> Result<(), AtomicBoolMatrixError> {
-        if index.0 >= matrix.data.dim().0 || index.1 >= matrix.data.dim().1 {
-            Err(AtomicBoolMatrixError::IndexOutOfBounds)
-        } else {
-            let value = !matrix.data[index].load();
-            matrix.data[index].store(value);
-
-            Ok(())
-        }
-    }
-}
-//////////////////////////////////////////////////////////////////////////////////
 
 // The ViewOperation struct
 pub struct ViewOperation {
@@ -424,76 +135,289 @@ impl MatrixStrategy for ViewOperation {
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////
+// Set the state
+pub struct StateSetOperation;
 //
-// Error types for AtomicBoolMatrix operations
-//
-#[derive(Debug, PartialEq)]
-pub enum AtomicBoolMatrixError {
-    MutexPoisoned,
-    IndexOutOfBounds,
-}
-
-// An AtomicBoolMatrixError is returned when an operation on an AtomicBoolMatrix fails.
-impl fmt::Display for AtomicBoolMatrixError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            AtomicBoolMatrixError::MutexPoisoned => write!(f, "Mutex was poisoned"),
-            AtomicBoolMatrixError::IndexOutOfBounds => write!(f, "Index out of bounds"),
-        }
-    }
-}
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////
-//
-// Sum of all elements
-//
-pub struct SumOperation;
-impl MatrixOperation for SumOperation {
-    fn execute(
-        &self,
-        matrix: &AtomicBoolMatrix,
-        _index: (usize, usize),
-        _other: Option<bool>,
-    ) -> Result<bool, AtomicBoolMatrixError> {
-        let mut sum = 0;
-        for i in 0..matrix.data.dim().0 {
-            for j in 0..matrix.data.dim().1 {
-                sum += matrix.data[(i, j)].load() as i32;
+impl MatrixOperation for StateSetOperation {
+    fn execute(&self, context: &MatrixContext, value: AtomicBool) -> Result<(), MatricalError> {
+        // Here we'll set all the states to true
+        for row in &mut context.matrix {
+            for element in row {
+                element.state.atomic_bool.store(value);
             }
         }
-        println!("Sum of all elements: {}", sum);
-        Ok(true)
+        Ok(())
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
-//
-// Transposing
-//
+pub struct StateGetOperation;
 
-// pub struct TransposedMatrix<'a> {
-//     matrix: &'a AtomicBoolMatrix,
-// }
-// impl<'a> TransposedMatrix<'a> {
-//     pub fn new(matrix: &'a AtomicBoolMatrix) -> Self {
-//         Self { matrix }
+impl MatrixOperation for StateGetOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct StateToggleOperation;
+
+impl MatrixOperation for StateToggleOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct BitwiseAndOperation;
+
+impl MatrixOperation for BitwiseAndOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct BitwiseOrOperation;
+
+impl MatrixOperation for BitwiseOrOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct BitwiseXorOperation;
+
+impl MatrixOperation for BitwiseXorOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct BitwiseNotOperation;
+
+impl MatrixOperation for BitwiseNotOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct CreateAttributeOperation;
+
+impl MatrixOperation for CreateAttributeOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct GetAttributeOperation;
+
+impl MatrixOperation for GetAttributeOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+pub struct RemoveAttributeOperation;
+
+impl MatrixOperation for RemoveAttributeOperation {
+    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
+        // Implement the MatrixOperation trait
+    }
+}
+
+// The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
+impl<V> Matrix {
+    pub fn set_operation(&mut self, operation: Box<dyn MatrixOperation>) {
+        self._context.operation = operation;
+    }
+
+    pub fn execute_operation(&self) -> Result<(), MatricalError> {
+        self._context.operation.execute(&self._context)
+    }
+}
+
+fn main() {
+    let mut matrix = Matrix::new((5, 5), Box::new(ViewOperation));
+    matrix.execute_operation().unwrap();
+
+    matrix.set_operation(Box::new(StateSetOperation));
+    matrix.execute_operation().unwrap();
+}
+
+// State
+pub struct StateSetOperation;
+pub struct StateGetOperation;
+pub struct StateToggleOperation;
+
+// Element Arithmetics
+pub struct BitwiseAndOperation;
+pub struct BitwiseOrOperation;
+pub struct BitwiseXorOperation;
+pub struct BitwiseNotOperation;
+
+// Attributes
+pub struct CreateAttributeOperation;
+pub struct GetAttributeOperation;
+pub struct RemoveAttributeOperation;
+
+// Functors are functions that operate on the matrix
+// Execute a function on the value of a Element
+pub trait FunctorHandler<T, F> where F: Fn() -> Sync + Send {
+    fn execute(&self, context: &MatrixContext<T>) -> Result<T, MatricalError>;
+}
+pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(), MatricalError>
+where
+    H: FunctorHandler<T, F>
+{
+    let result: Result<T, _> = handler.compute(&context.);
+    match result {
+        Ok(value) => {
+            context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
+                matrix.set_value(value);
+            }));
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
+
+}
+
+pub fn from_enum_matrix(matrix: Array2<MatrixElement>) -> Self {
+    let rows = matrix.nrows();
+    let cols = matrix.ncols();
+    let mut data = Vec::with_capacity(rows * cols);
+    for element in matrix.iter() {
+        let val = match element {
+            MatrixElement::VariantA => true,  // or whatever logic you want
+            MatrixElement::VariantB => false, // or whatever logic you want
+            MatrixElement::VariantC => true,  // or whatever logic you want
+            // ...
+        };
+        data.push(AtomicBool::new(val));
+    }
+    AttributeMatrix {
+        matrix: ArcSwap::new(Arc::new(Array2::from_shape_vec((rows, cols), data).unwrap())),
+    }
+}
+
+// example of a method for updating the matrix using parallel processing
+pub fn parallel_update<F>(&self, update_func: F)
+where
+    F: Fn(usize, usize) -> bool + Sync,
+{
+    let rows = self.matrix.load().rows();
+    let cols = self.matrix.load().cols();
+    (0..rows).into_par_iter().for_each(|row| {
+        for col in 0..cols {
+            let new_val = update_func(row, col);
+            self.update_value(row, col, new_val);
+        }
+    });
+}
+
+// mod Mask {
+//     //////////////////////////////////////////////////
+//     // DASHER
+//     use dashmap::DashMap;
+//     type MaskId = String;
+
+//     // Our concurrent mask storage.
+//     struct MaskStorage {
+//         masks: DashMap<MaskId, AttributeMatrix>,
 //     }
-//     pub fn get(&self, index: (usize, usize)) -> Result<bool, AtomicBoolMatrixError> {
-//         self.matrix.get((index.1, index.0))
-//     }
-//     pub fn set(&self, index: (usize, usize), value: bool) -> Result<bool, AtomicBoolMatrixError> {
-//         self.matrix
-//             .execute_operation(index, Some(value), &SetOperation)
+//     impl MaskStorage {
+//         fn new() -> Self {
+//             MaskStorage {
+//                 masks: DashMap::new(),
+//             }
+//         }
+//         fn insert(&self, mask_id: MaskId, mask: AttributeMatrix) {
+//             self.masks.insert(mask_id, mask);
+//         }
+//         fn get(&self, mask_id: &MaskId) -> Option<AttributeMatrix> {
+//             self.masks.get(mask_id).map(|mask_ref| mask_ref.clone())
+//         }
+//         fn remove(&self, mask_id: &MaskId) -> Option<AttributeMatrix> {
+//             self.masks.remove(mask_id).map(|(_, mask)| mask)
+//         }
 //     }
 // }
 
-// fn main() {
-//     let mut matrix = AtomicBoolMatrix::new((10, 10));
-//     matrix.add_attribute("some attribute".to_string());
+//     // The error type returned by operations
 
-//     let operation = MyOperation;
-//     let result = matrix.execute_operation(Box::new(operation), (5, 5), Some(true));
-// }
+// // Error handling
+pub enum MatricalError {
+    Regular(MatricalErrorType),
+    Custom(String),
+    ShouldNotOccur,
+}
+
+pub enum AtomicBoolError {
+    MutexPoisoned,
+    IndexOutOfBounds,
+    MissingOperand,
+}
+
+pub enum MatricalErrorType {
+    IncorrectDimensions,
+    IncorrectFormat,
+}
+
+impl fmt::Debug for MatricalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for MatricalError {}
+
+impl fmt::Display for MatricalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MatricalError::Regular(err) => write!(f, "Regular error: {}", err.as_str()),
+            MatricalError::Custom(err) => write!(f, "Custom error: {}", err),
+            MatricalError::ShouldNotOccur => write!(f, "Other error"),
+        }
+    }
+}
+
+impl MatricalErrorType {
+    fn as_str(&self) -> &str {
+        match *self {
+            MatricalErrorType::IncorrectDimensions => "IncorrectDimensions",
+            MatricalErrorType::IncorrectFormat => "IncorrectFormat",
+        }
+    }
+}
+
+// ERROR
+struct ErrorHandler;
+use std::fmt::Debug;
+
+// Assuming you have an Error type
+#[derive(Debug)]
+pub struct Error {
+    message: String,
+    // you can add more fields here
+}
+
+impl Error {
+    pub fn new(message: &str) -> Self {
+        Error {
+            message: message.to_string(),
+        }
+    }
+}
+
+// Handler trait definition TODO: Implement this
+pub trait Handler<T> {
+    fn call(&self, context: &Context<T>);
+}
+
+// An ErrorHandler
+pub struct ErrorHandler;
+
+impl Handler<Error> for ErrorHandler {
+    fn call(&self, context: &Context<Error>) {
+        // Here you can handle the error in any way you want
+        println!("Error occurred in '{}': {:?}", context.name, context.data);
+    }
+}
+
