@@ -6,6 +6,7 @@
         "name": "Cargo test",
         "cargo": {
             "args": [
+                "+nightly",
                 "test",
                 "--no-run",
                 "--lib"

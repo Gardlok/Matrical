@@ -132,7 +132,7 @@ impl SurrealDBAdapter {
         self.execute_strategies(&data)?;
 
         // Perform the matrix value setting operation
-        // ...
+      
 
         Ok(())
     }
@@ -148,36 +148,39 @@ impl DependencyInjectionContainer {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-// TEMPLATE Access to SurrealDB
-impl Strategy for YourStrategyType {
-    fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        // Implement prepare method for your strategy
-    }
+// // TEMPLATE Access to SurrealDB
+// impl Strategy for YourStrategyType {
+//     fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String> {
+//         // Implement prepare method for your strategy
 
-    fn execute(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        // Implement execute method for your strategy
-    }
+        
 
-    fn result(&self) -> Result<(), String> {
-        // Implement result method for your strategy
-    }
-}
+//     }
 
-impl FilterStrategy for YourFilterStrategyType {
-    fn filter(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        // Implement filter method for your filter strategy
-    }
-}
-impl SortStrategy for YourSortStrategyType {
-    fn sort(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        // Implement sort method for your sort strategy
-    }
-}
-impl AggregateStrategy for YourAggregateStrategyType {
-    fn aggregate(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        // Implement aggregate method for your aggregate strategy
-    }
-}
+//     fn execute(&self, data: &HashMap<String, String>) -> Result<(), String> {
+//         // Implement execute method for your strategy
+//     }
+
+//     fn result(&self) -> Result<(), String> {
+//         // Implement result method for your strategy
+//     }
+// }
+
+// impl FilterStrategy for YourFilterStrategyType {
+//     fn filter(&self, data: &HashMap<String, String>) -> Result<(), String> {
+//         // Implement filter method for your filter strategy
+//     }
+// }
+// impl SortStrategy for YourSortStrategyType {
+//     fn sort(&self, data: &HashMap<String, String>) -> Result<(), String> {
+//         // Implement sort method for your sort strategy
+//     }
+// }
+// impl AggregateStrategy for YourAggregateStrategyType {
+//     fn aggregate(&self, data: &HashMap<String, String>) -> Result<(), String> {
+//         // Implement aggregate method for your aggregate strategy
+//     }
+// }
 
 
 
@@ -189,7 +192,7 @@ impl<V> Matrix<V> {
             _context: MatrixContext {
                 attributes: HashMap::new(),
                 functors: HashMap::new(),
-                update_queue: SegQueue::new(),
+                // update_queue: SegQueue::new(),
             },
         }
     }
@@ -336,7 +339,7 @@ pub fn perform_execute<T, H>(context: MatrixContext<T>, handler: &H) -> Result<(
 where
     H: FunctorHandler<T, F>
 {
-    let result: Result<T, _> = handler.compute(&context.);
+    let result: Result<T, _> = handler.execute(&context);  
     match result {
         Ok(value) => {
             context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
