@@ -38,12 +38,15 @@ mod operation;
 
 
 mod handler;
-use handler::Handler;
 
 
 
-// Strategy trait
+mod context;
+
+
+
 // Defines a set of methods that can be used to perform various operations on a given data set.
+//
 trait Strategy {
     fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String>;
     fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
@@ -77,7 +80,7 @@ impl DependencyInjectionContainer {
 
 
 // The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
-impl<V> Matrix<V> {
+impl Matrix {
    pub fn new() -> Self {
         Self {
             matrix: Arc::new(SurrealDBAdapter::new()),
@@ -96,6 +99,250 @@ impl<V> Matrix<V> {
         self._context.operation.execute(&self._context)
     }
     // Use the execute_strategies method within your matrix operation methods to apply the desired strategies:
+    pub fn execute_strategies(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+    pub async fn async_execute_strategies(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    pub fn add_strategy(&mut self, strategy: Box<dyn Strategy>) {
+        let mut di_container = self.di_container.lock().unwrap();
+        di_container.strategies.push(strategy);
+    }
+
+    pub fn add_parameterized_query(&mut self, query: ParameterizedQuery) {
+        let mut di_container = self.di_container.lock().unwrap();
+        di_container.parameterized_queries.push(query);
+    }
+
+    // get_matrix_value()
+    // Retrieves a matrix value from the given data set.
+    pub fn get_matrix_value(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_value()
+    // Sets a matrix value in the given data set.
+    pub fn set_matrix_value(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_attributes()
+    // Retrieves a matrix attribute from the given data set.
+    pub fn get_matrix_attributes(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_attributes()
+    // Sets a matrix attribute in the given data set.
+    pub fn set_matrix_attributes(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_functors()
+    // Retrieves a matrix functor from the given data set.
+    pub fn get_matrix_functors(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_functors()
+    // Sets a matrix functor in the given data set.
+    pub fn set_matrix_functors(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_operation()
+    // Retrieves a matrix operation from the given data set.
+    pub fn get_matrix_operation(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_operation()
+    // Sets a matrix operation in the given data set.
+    pub fn set_matrix_operation(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+
+    // get_matrix_size()
+    // Retrieves a matrix size from the given data set.
+    pub fn get_matrix_size(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+
+    // set_matrix_size()
+    // Sets a matrix size in the given data set.
+    pub fn set_matrix_size(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+
+        }
+        Ok(())
+    }
+
+    // get_matrix_shape()
+    // Retrieves a matrix shape from the given data set.
+    pub fn get_matrix_shape(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_shape()
+    // Sets a matrix shape in the given data set.
+    pub fn set_matrix_shape(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_dimensions()
+    // Retrieves a matrix dimensions from the given data set.
+    pub fn get_matrix_dimensions(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_dimensions()
+    // Sets a matrix dimensions in the given data set.
+    pub fn set_matrix_dimensions(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_data()
+    // Retrieves a matrix data from the given data set.
+    pub fn get_matrix_data(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // set_matrix_data()
+    // Sets a matrix data in the given data set.
+    pub fn set_matrix_data(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+    // get_matrix_view()
+    // Retrieves a matrix view from the given data set.
+    pub fn get_matrix_view(&self, data: &HashMap<String, String>) -> Result<(), String> {
+        let di_container = self.di_container.lock().unwrap();
+        for strategy in &di_container.strategies {
+
+            strategy.prepare(data)?;
+            strategy.execute(data)?;
+            strategy.result()?;
+        }
+        Ok(())
+    }
+
+
 
 
 }
@@ -105,7 +352,7 @@ pub struct Attribute { _attri: PhantomData<Arc<dyn Fn()>> }
 pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
 pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
 // pub struct Matrix<V> { matrix: SegQueue<Element<V>>, _context: MatrixContext }
-pub struct Matrix<V> { matrix: SegQueue<SurrealDBAdapter>, _context: MatrixContext }
+pub struct Matrix { matrix: SegQueue<SurrealDBAdapter>, _context: MatrixContext }
 
 pub struct AttributeContext {
     pub attri: Option<SegQueue<dyn Any + Send + Sync>>,
@@ -126,18 +373,14 @@ pub struct MatrixContext {
 }
 
 
-
-// Matrix Strategy
 pub trait MatrixStrategy {
     fn execute<V>(
         &self,
-        matrix: &Matrix<V>,
+        matrix: &Matrix,
         index: Option<(usize, usize)>,
         other: Option<bool>,
     ) -> Result<(), MatricalError>;
 }
-
-
 
 // Matrix Operation
 pub trait MatrixOperation {
@@ -151,6 +394,7 @@ impl MatrixOperation for ViewOperation {
 }
 
 // The ViewOperation struct
+//
 pub struct ViewOperation {
     // The top left and bottom right coordinates of the sub-matrix
     top_left: (usize, usize),
@@ -166,10 +410,13 @@ impl ViewOperation {
     }
 }
 
+// Implement the MatrixStrategy trait for ViewOperation
+// This allows us to use ViewOperation as a strategy
+// for performing operations on a matrix
 impl MatrixStrategy for ViewOperation {
     fn execute<V>(
         &self,
-        matrix: &Matrix<V>,
+        matrix: &Matrix,
         _index: Option<(usize, usize)>,
         _other: Option<bool>,
     ) -> Result<(), MatricalError> {
@@ -182,7 +429,10 @@ impl MatrixStrategy for ViewOperation {
             return Err(MatricalError::IndexOutOfBounds);
         }
 
-        // Iterate over the sub-matrix and print the values
+        // Create a sub-matrix view
+        let sub_matrix = matrix.data.slice(s![self.top_left.0..=self.bottom_right.0, self.top_left.1..=self.bottom_right.1]);
+
+         // Iterate over the sub-matrix and print the values
         for i in self.top_left.0..=self.bottom_right.0 {
             for j in self.top_left.1..=self.bottom_right.1 {
                 let value = matrix.data[(i, j)].load();
@@ -202,9 +452,9 @@ pub trait FunctorHandler<T, F> where F: Fn() -> T {
 }
 pub fn perform_execute<T, H>(context: MatrixContext, handler: &H) -> Result<(), MatricalError>
 where
-    H: FunctorHandler<T, H>
+    H: FunctorHandler<T, H> + Fn() -> T
 {
-    let result: Result<T, _> = handler.execute(&context);  
+    let result: Result<T, H> = handler.execute(&context);  
     match result {
         Ok(value) => {
             context.update_queue.lock().unwrap().push_back(Box::new(move |matrix| {
@@ -216,9 +466,6 @@ where
     }
 
 }
-
-
-
 
 
 
@@ -234,6 +481,16 @@ where
 //     fn call(&self, context: &Context<Error>) {
 //         // Here you can handle the error in any way you want
 //         println!("Error occurred in '{}': {:?}", context.name, context.data);
+//     }
+// }
+
+// // A SuccessHandler
+// pub struct SuccessHandler;
+
+// impl Handler<()> for SuccessHandler {
+//     fn call(&self, context: &Context<()>) {
+//         // Here you can handle the success in any way you want
+//         println!("Success occurred in '{}'", context.name);
 //     }
 // }
 
