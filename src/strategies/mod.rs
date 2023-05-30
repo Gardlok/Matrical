@@ -1,7 +1,6 @@
 
 
-pub mod aggregate;
-pub use aggregate::AggregateStrategy;
+
 
 use crate::*;
 
@@ -13,3 +12,16 @@ pub trait MatrixStrategy {
         other: Option<bool>,
     ) -> Result<(), MatricalError>;
 }
+
+pub trait ElementStrategy<V> {
+    fn execute(
+        &self,
+        element: &Element<V>,
+        index: Option<(usize, usize)>,
+        other: Option<bool>,
+    ) -> Result<(), MatricalError>;
+}
+
+
+
+

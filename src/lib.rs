@@ -32,8 +32,12 @@ use lenses::*;
 mod strategies;
 use strategies::*;
 
-mod matrix;
-use matrix::*;
+mod schematics;
+use schematics::data::*;
+use schematics::element::*;
+use schematics::matrix::*;
+
+use schematics::vector::*;
 
 //use operations::matrix::*;
 mod db;

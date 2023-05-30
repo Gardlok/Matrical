@@ -3,27 +3,9 @@
 use crate::*;
 
 
-pub struct AtomicBool { atomic_bool: AtomicCell<bool> }
 
-pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
 
 pub struct Matrix<V> { matrix: SegQueue<Element<V>>, _context: MatrixContext }
-
-
-// Move the following to a separate file
-pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
-pub struct AttributeContext {
-    pub attri: Option<SegQueue<Box<dyn Any + Send + Sync>>>,
-}
-
-pub struct ElementContext<V> {
-    pub state: AtomicBool,
-    pub x_idx: AtomicCell<usize>,
-    pub y_idx: AtomicCell<usize>,
-    pub attri: Option<SegQueue<Cog>>, 
-    pub workq: SegQueue<Box<dyn Fn (&mut dyn FunctorHandler)>>,  // TODO
-    pub value: Option<V>,  // Not thread safe
-}
 
 pub struct MatrixContext {
     dimensions: Option<(usize, usize)>,
@@ -32,6 +14,7 @@ pub struct MatrixContext {
 }
 
 // The Matrix struct now holds a Box<dyn MatrixOperation> which allows for changing the operation at runtime
+
 impl Matrix {
     pub fn new() -> Self {
          Self {
@@ -248,65 +231,6 @@ impl Matrix {
     }
 }
  
- impl <V>ElementContext<V> {
-     pub fn new() -> Self {
-         Self {
-             state: AtomicBool::new(),
-             workq: SegQueue::new(),
-             x_idx: None,
-             y_idx: None,
-             attri: None,
-             value: None,
-         }
-     }
- }
  
- impl <V> Default for ElementContext<V> {
-     fn default() -> Self {
-         Self::new()
-     }
- }
- 
- impl AttributeContext {
-     pub fn new() -> Self {
-         Self {
-             attri: None,
-         }
-     }
- }
- 
- 
- 
- impl<V> Element<V> {
-     pub fn new() -> Self {
-         Self {
-             state: AtomicBool::new(),
-             _context: ElementContext::new(),
-         }
-     }
- }
- 
- 
- impl AttributesApplied {
-     pub fn new() -> Self {
-         Self {
-             attri: SegQueue::new(),
-         }
-     }
- }
- 
- impl AtomicBool {
-     pub fn new() -> Self {
-         Self {
-             atomic_bool: AtomicCell::new(false),
-         }
-     }
- }
 
 
-
-
-// Move the following to a separate file
-
-
-// .. and the rest of matrix ops getters and setters.. //
