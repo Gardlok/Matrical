@@ -26,7 +26,14 @@ use error::{AtomicBoolError, MatricalError, MatricalErrorType};
 use db::surreal_db::SurrealDBAdapter;
 
 mod operations;
-use operations::attribute::Attribute;
+use operations::cog::*;
+use operations::gears::*;
+
+//use operations::matrix::*;
+
+mod lenses;
+use lenses::prelude::*;
+
 
 mod matrix;
 use matrix::AtomicFlagMatrix;
@@ -41,7 +48,10 @@ mod handler;
 
 
 
-mod context;
+// use crate::error::MatricalError;
+// use ndarray::Array2;
+// use std::marker::PhantomData;
+// use std::sync::Arc;
 
 
 
@@ -179,18 +189,6 @@ impl Matrix {
     // get_matrix_functors()
     // Retrieves a matrix functor from the given data set.
     pub fn get_matrix_functors(&self, data: &HashMap<String, String>) -> Result<(), String> {
-        let di_container = self.di_container.lock().unwrap();
-        for strategy in &di_container.strategies {
-            strategy.prepare(data)?;
-            strategy.execute(data)?;
-            strategy.result()?;
-        }
-        Ok(())
-    }
-
-    // set_matrix_functors()
-    // Sets a matrix functor in the given data set.
-    pub fn set_matrix_functors(&self, data: &HashMap<String, String>) -> Result<(), String> {
         let di_container = self.di_container.lock().unwrap();
         for strategy in &di_container.strategies {
             strategy.prepare(data)?;
@@ -347,30 +345,143 @@ impl Matrix {
 
 }
 
+mod modname {
+        use super::Matrix;
+
+        impl Matrix {
+            // set_matrix_functors()
+        // Sets a matrix functor in the given data set.
+        pub fn set_matrix_functors(&self, data: &HashMap<String, String>) -> Result<(), String> {
+            let di_container = self.di_container.lock().unwrap();
+            for strategy in &di_container.strategies {
+                strategy.prepare(data)?;
+                strategy.execute(data)?;
+                strategy.result()?;
+            }
+            Ok(())
+        }
+        }
+    }
+
+
 pub struct AtomicBool { atomic_bool: AtomicCell<bool> }
-pub struct Attribute { _attri: PhantomData<Arc<dyn Fn()>> }
 pub struct AttributesApplied { attri: SegQueue<PhantomData<Arc<dyn Any + Send + Sync>>> }
 pub struct Element<V> { state: AtomicBool , _context: ElementContext<V> }
 // pub struct Matrix<V> { matrix: SegQueue<Element<V>>, _context: MatrixContext }
-pub struct Matrix { matrix: SegQueue<SurrealDBAdapter>, _context: MatrixContext }
+pub struct Matrix { matrix: SegQueue<AtomicBool>, _context: MatrixContext }
+
+
 
 pub struct AttributeContext {
-    pub attri: Option<SegQueue<dyn Any + Send + Sync>>,
+    pub attri: Option<SegQueue<Box<dyn Any + Send + Sync>>>,
 }
 
 pub struct ElementContext<V> {
     pub state: AtomicBool,
     pub x_idx: AtomicCell<usize>,
     pub y_idx: AtomicCell<usize>,
-    pub attri: Option<SegQueue<Attribute>>,
-    pub workq: SegQueue<dyn Fn (&mut Element<V>)>,  // TODO
+    pub attri: Option<SegQueue<Cog>>,
+    pub workq: SegQueue<Box<dyn Fn (&mut Element<V>)>>,  // TODO
     pub value: Option<V>,  // Not thread safe
 }
 
 pub struct MatrixContext {
     attributes: HashMap<TypeId, Arc<dyn Fn()>>,
-    functors: HashMap<usize, Arc<dyn Fn( dyn Any + Send + Sync )>>,
+    functors: HashMap<usize, Arc<Box<dyn Fn( dyn Any + Send + Sync )>>>,
 }
+
+
+impl MatrixContext {
+    pub fn new() -> Self {
+        Self {
+            attributes: HashMap::new(),
+            functors: HashMap::new(),
+        }
+    }
+}
+
+impl ElementContext {
+    pub fn new() -> Self {
+        Self {
+            state: AtomicBool::new(),
+            x_idx: AtomicCell::new(),
+            y_idx: AtomicCell::new(),
+            attri: None,
+            workq: SegQueue::new(),
+            value: None,
+        }
+    }
+}
+
+impl Default for ElementContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AttributeContext {
+    pub fn new() -> Self {
+        Self {
+            attri: None,
+        }
+    }
+}
+
+impl Matrix {
+    pub fn new() -> Self {
+        Self {
+            matrix: SegQueue::new(),
+            _context: MatrixContext::new(),
+        }
+    }
+}
+
+impl<V> Element<V> {
+    pub fn new() -> Self {
+        Self {
+            state: AtomicBool::new(),
+            _context: ElementContext::new(),
+        }
+    }
+}
+
+impl Cog {
+    pub fn new() -> Self {
+        Self {
+            _attri: PhantomData,
+        }
+    }
+}
+
+impl AttributesApplied {
+    pub fn new() -> Self {
+        Self {
+            attri: SegQueue::new(),
+        }
+    }
+}
+
+impl AtomicBool {
+    pub fn new() -> Self {
+        Self {
+            atomic_bool: AtomicCell::new(false),
+        }
+    }
+}
+
+// impl Matrix { pub fn new() -> Self { Self { matrix: SegQueue::new(), _context: MatrixContext::new(), } } }
+// impl Element { pub fn new() -> Self { Self { state: AtomicBool::new(), _context: ElementContext::new(), } } }
+// impl Attribute { pub fn new() -> Self { Self { _attri: PhantomData, } } }
+// impl AttributesApplied { pub fn new() -> Self { Self { attri: SegQueue::new(), } } }
+// impl AtomicBool { pub fn new() -> Self { Self { atomic_bool: AtomicCell::new(false), } } }
+// impl AttributeContext { pub fn new() -> Self { Self { attri: None, } } }
+// impl ElementContext { pub fn new() -> Self { Self { state: AtomicBool::new(), x_idx: AtomicCell::new(), y_idx: AtomicCell::new(), attri: None, workq: SegQueue::new(), value: None, } } }
+// impl MatrixContext { pub fn new() -> Self { Self { attributes: HashMap::new(), functors: HashMap::new(), } } }
+// impl MatrixOperation { pub fn new() -> Self { Self { operation: None, } } }
+// impl MatrixStrategy { pub fn new() -> Self { Self { strategy: None, } } }
+// impl ViewOperation { pub fn new() -> Self { Self { top_left: (0, 0), bottom_right: (0, 0), } } }
+// impl ViewStrategy { pub fn new() -> Self { Self { top_left: (0, 0), bottom_right: (0, 0), } } }
+// impl ViewContext { pub fn new() -> Self { Self { top_left: (0, 0), bottom_right: (0, 0), } } }
 
 
 pub trait MatrixStrategy {
@@ -387,66 +498,27 @@ pub trait MatrixOperation {
     fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError>;
 }
 
-impl MatrixOperation for ViewOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError> {
-        unimplemented!()
-    }
-}
-
-// The ViewOperation struct
-//
-pub struct ViewOperation {
-    // The top left and bottom right coordinates of the sub-matrix
-    top_left: (usize, usize),
-    bottom_right: (usize, usize),
-}
-impl ViewOperation {
-    // Create a new ViewOperation with the given coordinates
-    pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-        Self {
-            top_left,
-            bottom_right,
-        }
-    }
-}
-
-// Implement the MatrixStrategy trait for ViewOperation
-// This allows us to use ViewOperation as a strategy
-// for performing operations on a matrix
-impl MatrixStrategy for ViewOperation {
-    fn execute<V>(
-        &self,
-        matrix: &Matrix,
-        _index: Option<(usize, usize)>,
-        _other: Option<bool>,
-    ) -> Result<(), MatricalError> {
-        // Check if the coordinates are within the matrix dimensions
-        if self.top_left.0 >= matrix.data.dim().0
-            || self.top_left.1 >= matrix.data.dim().1
-            || self.bottom_right.0 >= matrix.data.dim().0
-            || self.bottom_right.1 >= matrix.data.dim().1
-        {
-            return Err(MatricalError::IndexOutOfBounds);
-        }
-
-        // Create a sub-matrix view
-        let sub_matrix = matrix.data.slice(s![self.top_left.0..=self.bottom_right.0, self.top_left.1..=self.bottom_right.1]);
-
-         // Iterate over the sub-matrix and print the values
-        for i in self.top_left.0..=self.bottom_right.0 {
-            for j in self.top_left.1..=self.bottom_right.1 {
-                let value = matrix.data[(i, j)].load();
-                println!("Value at ({}, {}): {}", i, j, value);
-            }
-        }
-        Ok(())
-    }
-}
-
 
 
 // Functors are functions that operate on the matrix
 // Execute a function on the value of a Element
+pub fn execute_functor<T, F>(element: &mut Element<T>, functor: F)
+where
+    F: Fn(&mut Element<T>) + Send + Sync,
+    T: Send + Sync,
+    Element<T>: Send + Sync,
+{
+    // Execute the function on the Element
+    // This will mutate the Element
+    // The function must be Send + Sync
+    // The Element must be Send + Sync
+    // The value of the Element must be Send + Sync
+    // The function takes a mutable reference to an Element
+    // and returns nothing
+    functor(element);
+}
+
+
 pub trait FunctorHandler<T, F> where F: Fn() -> T {
     fn execute(&self, context: &MatrixContext) -> Result<T, MatricalError>;
 }
@@ -466,6 +538,7 @@ where
     }
 
 }
+
 
 
 
