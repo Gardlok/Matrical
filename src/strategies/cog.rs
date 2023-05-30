@@ -9,7 +9,7 @@ use std::sync::Arc;
 // The Cog struct
 // 
 /*
- * An Cog in Matrical is a piece of metadata that can be associated with a matrix or a submatrix.
+ * An Cog, in Matrical, is a piece of metadata that can be associated with a matrix or a submatrix.
  * It can store any kind of information, such as tags, labels, or significant data about the matrix.
  * Cogs can be used to provide additional context for operations performed on the matrix.
  * When a Gear operates on a matrix, it can use the information from any associated Cogs to
