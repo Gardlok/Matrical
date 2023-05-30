@@ -19,9 +19,9 @@ LowerTriangularLens: This lens would focus on the lower triangular part of the m
 SparseLens: This lens would focus on the non-zero elements of the matrix. This could be useful for operations on sparse matrices, where most of the elements are zero.
  */
 
- use crate::errors::MatricalError;
- use ndarray::{Array2, ArraylensMut2, s};
- use crate::matrix::{Matrix, MatrixStrategy};
+use crate::error::MatricalError;
+use ndarray::{Array2, s};
+use crate::{Matrix, MatrixStrategy};
  
  // The LensOperation struct
  
@@ -72,9 +72,7 @@ SparseLens: This lens would focus on the non-zero elements of the matrix. This c
  }
  
 
-use crate::errors::MatricalError;
-use ndarray::{Array2, s};
-use crate::matrix::{Matrix, MatrixStrategy};
+
 
 // The Lens trait
 pub trait Lens {

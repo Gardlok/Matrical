@@ -33,7 +33,7 @@ pub struct Cog {
     strategy: Option<Box<dyn CogStrategy>>,
 
     // The CogContext to be applied to the Cog
-    context: Option<Box<dyn CogContext>>,
+    context: Option<Box<CogContext>>,
    
 }
 
@@ -43,7 +43,7 @@ impl Cog {
         lens: Option<Arc<dyn Fn()>>,
         operation: Option<Box<dyn CogOperation>>,
         strategy: Option<Box<dyn CogStrategy>>,
-        context: Option<Box<dyn CogContext>>,
+        context: Option<Box<CogContext>>,
     ) -> Self {
         Self {
             lens,
@@ -52,6 +52,7 @@ impl Cog {
             context,
         }
     }
+}
         
 // Cog Operation
 // 
@@ -233,6 +234,20 @@ impl CogBuilder {
     // Build the Cog from the CogBuilder 
     // TODO: Should this be a reference to the Cog* struct?
     pub fn build(self) -> Cog {
-        Cog::new(self.top_left, self.bottom_right, self.data)
+        Cog::new(
+            None,
+            Some(Box::new(CogOperationImpl::new(
+                self.top_left,
+                self.bottom_right,
+            ))),
+            Some(Box::new(CogStrategyImpl::new(
+                self.top_left,
+                self.bottom_right,
+            ))),
+            Some(Box::new(CogContext::new(
+                self.top_left,
+                self.bottom_right,
+            ))),
+        )
     }
 }

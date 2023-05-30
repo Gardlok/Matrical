@@ -1,9 +1,9 @@
 
 
 
-mod surreal_db;
-mod surreal_db_test;
+pub mod surreal_db;
 
-pub use surreal_db::SurrealDB;
-pub use surreal_db_test::SurrealDBTest;
+
+pub use surreal_db::*;
+
 

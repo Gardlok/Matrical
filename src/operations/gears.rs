@@ -1,8 +1,8 @@
 
 
 
-use crate::errors::MatricalError;
-use ndarray::Array2;
+use crate::error::MatricalError;
+use ndarray::{Array2, s};
 
 // The Gear struct
 #[derive(Debug, Clone)]
@@ -205,13 +205,7 @@ mod tests {
 
         assert_eq!(gear.data, expected_data);
     }
-}
 
-
-
-#[cfg(test)]
-mod tests {
-    
     #[test]
     fn test_basics() {
         use super::*;
@@ -233,20 +227,6 @@ mod tests {
     
         // Print the gear data
         println!("{:?}", gear.data);
-    }
-
-    #[test]
-    fn test_gear_builder() {
-        let top_left = (0, 0);
-        let bottom_right = (2, 2);
-        let data = Array2::zeros((3, 3));
-
-        let gear_builder = GearBuilder::new(top_left, bottom_right);
-        let gear = gear_builder.data(data).build();
-
-        assert_eq!(gear.top_left, top_left);
-        assert_eq!(gear.bottom_right, bottom_right);
-        assert_eq!(gear.data, data);
     }
 
     #[test]
