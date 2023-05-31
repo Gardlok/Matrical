@@ -3,9 +3,9 @@ use crate::*;
 
 
 
-pub trait MatrixContext {
-    fn is_valid(&self) -> bool;
-}
+// pub trait MatrixContext {
+//     fn is_valid(&self) -> bool;
+// }
 
 pub trait IsValid {
     fn is_valid(&self) -> bool;
@@ -52,13 +52,13 @@ impl<T> MatrixValidationStrategy<T> for IsValidStrategy<T> {
 }
 
 pub struct MatrixContextStrategy<T> {
-    validator: Box<dyn Fn(&dyn MatrixContext) -> bool>,
+    validator: Box<dyn Fn(&MatrixContext<T>) -> bool>,
 }
 
 impl<T> MatrixContextStrategy<T> {
     pub fn new<F>(validator: F) -> Self
     where
-        F: 'static + Fn(&dyn MatrixContext) -> bool,
+        F: 'static + Fn(&MatrixContext) -> bool,
     {
         Self {
             validator: Box::new(validator),
@@ -66,8 +66,8 @@ impl<T> MatrixContextStrategy<T> {
     }
 }
 
-impl<T> MatrixValidationStrategy<&dyn MatrixContext> for MatrixContextStrategy<T>{
-    fn is_valid(&self, context: &dyn MatrixContext) -> Result<(), MatricalError> {
+impl<T> MatrixValidationStrategy<&MatrixContext> for MatrixContextStrategy<T>{
+    fn is_valid(&self, context: &MatrixContext) -> Result<(), MatricalError> {
         // If the context is valid, return Ok
         if self.validator(context) {
             Ok(())
@@ -138,7 +138,7 @@ impl<T> MatrixValidationBuilder<T> {
 //     }
 // }
 
-fn validate_matrix(matrix: &dyn MatrixContext) -> Result<(), MatricalError> {
+fn validate_matrix(matrix: &MatrixContext) -> Result<(), MatricalError> {
     let mut builder = MatrixValidationBuilder::new();
     builder.add_strategy(IsValidStrategy::new(IsValid::is_valid));
     builder.add_strategy(MatrixContextStrategy::new(MatrixContext::is_valid));
