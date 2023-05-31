@@ -1,8 +1,26 @@
 
 
-
+use crate::schematics::Element;
 use crate::error::MatricalError;
 use ndarray::{Array2, s};
+
+
+
+
+pub fn execute_functor<T, F>(element: &mut Element<T>, functor: F)
+where
+    F: Fn(&mut Element<T>) + Send + Sync + Clone + Eq + 'static,
+    T: Send + Sync + Clone + Default + PartialEq + Eq + 'static,
+    Element<T>: Send + Sync,
+{
+
+    functor(element);
+}
+
+
+
+
+
 
 // The Gear struct
 #[derive(Debug, Clone)]
@@ -126,7 +144,7 @@ impl GearOperation for GearOperationImpl {
         let (end_row, end_col) = context.bottom_right;
 
         let data = &mut gear.data.slice_mut(s![start_row..=end_row, start_col..=end_col]);
-        data += self.constant;
+        *data += self.constant;
 
         Ok(())
     }

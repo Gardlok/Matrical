@@ -1,30 +1,34 @@
-pub mod gears;
-pub mod cog;
-pub mod lens;
+// Module: operations
+    
+pub mod arithmetic;
+pub mod aggregate;
+pub mod mechanics;
+pub mod bitwise;
+pub mod boolean;
+pub mod filter;
+pub mod sort;
 
-pub use gears::*;
-pub use cog::*;
-pub use lens::*;
+pub use arithmetic::*;
+pub use aggregate::*;
+pub use mechanics::*;
+pub use bitwise::*;
+pub use boolean::*;
+pub use filter::*;
+pub use sort::*;
+
+use crate::{ElementContext, error::MatricalError};
+    
 
 
-use crate::*;
 
 pub trait MatrixOperation {
-    fn execute(&self, context: &MatrixContext) -> Result<(), MatricalError>;
+    fn execute(&self, context: &dyn MatrixContext) -> Result<(), MatricalError>;
 }
 
-pub trait ElementOperation<V> {
+pub trait ElementOperation<V>where V: Clone + Send + Sync + 'static + Default + PartialEq + Eq {
     fn execute(&self, context: &ElementContext<V>) -> Result<(), MatricalError>;
 }
 
 
-pub fn execute_functor<T, F>(element: &mut Element<T>, functor: F)
-where
-    F: Fn(&mut Element<T>) + Send + Sync,
-    T: Send + Sync,
-    Element<T>: Send + Sync,
-{
 
-    functor(element);
-}
 
