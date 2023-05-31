@@ -1,5 +1,5 @@
 
-use crate::*;
+use crate::schematics::element::Element;
 
 use crossbeam::queue::SegQueue;
 

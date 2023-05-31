@@ -22,7 +22,7 @@ use crate::{ElementContext, error::MatricalError};
 
 
 pub trait MatrixOperation {
-    fn execute(&self, context: &dyn MatrixContext) -> Result<(), MatricalError>;
+    fn execute<T>(&self, context: &mut crate::schematics::MatrixContext) -> Result<(), MatricalError>;
 }
 
 pub trait ElementOperation<V>where V: Clone + Send + Sync + 'static + Default + PartialEq + Eq {

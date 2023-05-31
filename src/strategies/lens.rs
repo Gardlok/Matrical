@@ -1,6 +1,5 @@
 
 
-
 /*
 RowLens: This lens would focus on a specific row of the matrix. It would allow operations to be performed on that row without affecting the rest of the matrix.
 
@@ -20,29 +19,29 @@ SparseLens: This lens would focus on the non-zero elements of the matrix. This c
  */
 
 use crate::error::MatricalError;
-use ndarray::{Array2, s};
-
-use crate::schematics::{Matrix, Element};
-use std::sync::Arc;
-use dashmap::DashMap;
 use crossbeam::queue::{ArrayQueue, SegQueue};
 use std::marker::PhantomData;
 
-pub trait MatrixContextTrait {
+
+pub trait Lens<V> {
+    fn execute(&self, lens: &mut dyn Lens<V>) -> Result<(), MatricalError>;
+}
+
+pub trait MatrixLensTrait {
     fn is_valid(&self) -> bool;
 }
 
-pub struct MatrixContext<T> {
+pub struct MatrixLens<T> {
     data: T,
 }
 
-impl<T> MatrixContext<T> {
+impl<T> MatrixLens<T> {
     pub fn new(data: T) -> Self {
         Self { data }
     }
 }
 
-impl<T> MatrixContextTrait for MatrixContext<T> {
+impl<T> MatrixLensTrait for MatrixLens<T> {
     fn is_valid(&self) -> bool {
         // Check if the data is valid
         self.data.is_valid()
@@ -59,6 +58,9 @@ impl<T> IsValid for T {
         true
     }
 }
+
+
+
 
 pub struct CustomValidationStrategy<T, F> {
     validator: F,
@@ -90,10 +92,7 @@ where
     }
 }
 
-pub struct CustomContextStrategy<T, F> {
-    validator: F,
-    phantom: PhantomData<T>,
-}
+
 
 
 
@@ -129,14 +128,14 @@ impl<T> MatrixValidationStrategy<T> for IsValidStrategy<T> {
     }
 }
 
-pub struct MatrixContextStrategy<T> {
-    validator: Box<dyn Fn(&MatrixContext<T>) -> bool>,
+pub struct MatrixLensStrategy<T> {
+    validator: Box<dyn Fn(&MatrixLens<T>) -> bool>,
 }
 
-impl<T> MatrixContextStrategy<T> {
+impl<T> MatrixLensStrategy<T> {
     pub fn new<F>(validator: F) -> Self
     where
-        F: 'static + Fn(&MatrixContext<T>) -> bool,
+        F: 'static + Fn(&MatrixLens<T>) -> bool,
     {
         Self {
             validator: Box::new(validator),
@@ -144,8 +143,8 @@ impl<T> MatrixContextStrategy<T> {
     }
 }
 
-impl<T> MatrixValidationStrategy<MatrixContext<T>> for MatrixContextStrategy<T> {
-    fn is_valid(&self, context: &MatrixContext<T>) -> Result<(), MatricalError> {
+impl<T> MatrixValidationStrategy<MatrixLens<T>> for MatrixLensStrategy<T> {
+    fn is_valid(&self, context: &MatrixLens<T>) -> Result<(), MatricalError> {
         // If the context is valid, return Ok
         if (self.validator)(context) {
             Ok(())
@@ -184,6 +183,7 @@ impl<T> MatrixValidation<T> {
     }
 }
 
+
 pub struct MatrixValidationBuilder<T> {
     strategies: Vec<Box<dyn MatrixValidationStrategy<T>>>,
 }
@@ -207,19 +207,21 @@ impl<T> MatrixValidationBuilder<T> {
     }
 }
 
+/////////////////////////////////
+
 // impl<T> From<T> for Result<(), MatricalError> {
 //     fn from(value: T) -> Self {
 //         let mut validation = MatrixValidation::new();
 //         validation.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-//         validation.add_strategy(MatrixContextStrategy::new(MatrixContextTrait::is_valid));
+//         validation.add_strategy(MatrixLensStrategy::new(MatrixLensTrait::is_valid));
 //         validation.is_valid(&value)
 //     }
 // }
 
-// fn validate_matrix<T>(matrix: &MatrixContext<T>) -> Result<(), MatricalError> {
+// fn validate_matrix<T>(matrix: &MatrixLens<T>) -> Result<(), MatricalError> {
 //     let mut builder = MatrixValidationBuilder::new();
 //     builder.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-//     builder.add_strategy(MatrixContextStrategy::new(MatrixContextTrait::is_valid));
+//     builder.add_strategy(MatrixLensStrategy::new(MatrixLensTrait::is_valid));
 //     builder.add_strategy(CustomValidationStrategy::new(|matrix| {
 //         // Perform custom validation logic here
 //         true
@@ -232,8 +234,8 @@ impl<T> MatrixValidationBuilder<T> {
 //     fn from(value: T) -> Self {
 //         let mut validation = MatrixValidation::new();
 //         validation.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-//         validation.add_strategy(MatrixContextStrategy::new(MatrixContextTrait::is_valid));
-//         validation.add_strategy(CustomContextStrategy::new(MatrixContextTrait::is_valid));
+//         validation.add_strategy(MatrixLensStrategy::new(MatrixLensTrait::is_valid));
+//         validation.add_strategy(CustomContextStrategy::new(MatrixLensTrait::is_valid));
 //         validation.is_valid(&value)
 //     }
 // }
@@ -242,7 +244,7 @@ impl<T> MatrixValidationBuilder<T> {
 //     fn from(value: T) -> Self {
 //         let mut validation = MatrixValidation::new();
 //         validation.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-//         validation.add_strategy(MatrixContextStrategy::new(MatrixContextTrait::is_valid));
+//         validation.add_strategy(MatrixLensStrategy::new(MatrixLensTrait::is_valid));
 //         validation.add_strategy(CustomValidationStrategy::new(|matrix| {
 //             // Perform custom validation logic here
 //             true
@@ -251,29 +253,17 @@ impl<T> MatrixValidationBuilder<T> {
 //     }
 // }
 
-
-
-
 // impl<T> From<T> for Result<(), MatricalError> {
 //     fn from(value: T) -> Self {
 //         let mut validation = MatrixValidation::new();
 //         validation.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-//         validation.add_strategy(MatrixContextStrategy::new(MatrixContextTrait::is_valid));
-//         validation.add_strategy(CustomContextStrategy::new(MatrixContextTrait::is_valid));
+//         validation.add_strategy(MatrixLensStrategy::new(MatrixLensTrait::is_valid));
+//         validation.add_strategy(CustomContextStrategy::new(MatrixLensTrait::is_valid));
 //         validation.is_valid(&value)
 //     }
 // }
 
-
-
-
-
-
-
 ///////////////////////////////
-
-
-
 
     // Sizing
     // fn execute(&self, Lens: &mut Lens<V>) -> Result<(), MatricalError> {
@@ -324,76 +314,3 @@ fn initialize_di_container() -> DependencyInjectionContainer {
 }
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
- 
- #[cfg(test)]
- mod tests {
-     use super::*;
-     use crossbeam::queue::SegQueue;
- 
-    //  #[test]
-    // //  fn test_upper_triangular_lens() {
-    // //      // Create a matrix
-    // //      let matrix = Matrix::with_elements(SegQueue::from(vec![
-    // //          Element::new(1.0, (0, 0)),
-    // //          Element::new(2.0, (0, 1)),
-    // //          Element::new(3.0, (0, 2)),
-    // //          Element::new(4.0, (1, 0)),
-    // //          Element::new(5.0, (1, 1)),
-    // //          Element::new(6.0, (1, 2)),
-    // //          Element::new(7.0, (2, 0)),
-    // //          Element::new(8.0, (2, 1)),
-    // //          Element::new(9.0, (2, 2)),
-    // //      ]));
- 
-    //      // Apply the upper triangular lens
-    //      let lens = UpperTriangularLens::new();
-    //      let view = lens.apply(&matrix);
- 
-    //      // Check the dimensions of the view
-    //      assert_eq!(view.shape(), (3, 3));
- 
-    //      // Check the values of the view
-    //      assert_eq!(view[(0, 0)], 1);
-    //      assert_eq!(view[(0, 1)], 2);
-    //      assert_eq!(view[(0, 2)], 3);
-    //      assert_eq!(view[(1, 0)], 0);
-    //      assert_eq!(view[(1, 1)], 5);
-    //      assert_eq!(view[(1, 2)], 6);
-    //      assert_eq!(view[(2, 0)], 0);
-    //      assert_eq!(view[(2, 1)], 0);
-    //      assert_eq!(view[(2, 2)], 9);
-    //  }
- 
-    //  #[test]
-    //  fn test_row_lens() {
-    //      // Create a matrix
-    //      let matrix = Matrix::new(Array2::from_shape_vec((3, 3), vec![1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap());
- 
-    //      // Apply the row lens
-    //      let lens = RowLens::new(1);
-    //      let view = lens.apply(&matrix);
- 
-    //      // Check the dimensions of the view
-    //      assert_eq!(view.shape(), (1, 3));
- 
-    //      // Check the values of the view
-    //      assert_eq!(view[(0, 0)], 4);
-    //      assert_eq!(view[(0, 1)], 5);
-    //      assert_eq!(view[(0, 2)], 6);
-    //  }
- 
-     // Additional tests for other lens types...
- 
- }
