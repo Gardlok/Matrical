@@ -4,6 +4,62 @@
 use std::any::Any;
 use std::marker::PhantomData;
 
+pub struct Context {
+    param: String,
+    id: u32,
+}
+
+pub trait FromContext {
+    fn from_context(context: &Context) -> Self;
+}
+
+pub struct Param(pub String);
+
+impl FromContext for Param {
+    fn from_context(context: &Context) -> Self {
+        Param(context.param.clone())
+    }
+}
+
+trait Handler<T> {
+    fn call(&self, arg: T);
+}
+
+impl<T, F> Handler<T> for F
+where
+    F: Fn(T),
+{
+    fn call(&self, arg: T) {
+        (self)(arg);
+    }
+}
+
+// Can this help?
+pub struct Functor<T, F> {
+    handler: F,
+    _phantom: PhantomData<T>,
+}
+
+pub trait FunctorHandler<T, F> where F: Fn() -> T {
+    fn execute(&self, context: ()) -> Result<T, ()>;
+}
+
+impl<T, F> FunctorHandler<T, F> for Functor<T, F>
+where
+    F: Fn() -> T,
+{
+    fn execute(&self, context: ()) -> Result<T, ()> {
+        Ok((self.handler)())
+    }
+}
+
+pub fn perform_execute<T, H>(context: (), handler: &H) -> Result<(), ()>
+where
+    H: FunctorHandler<T, H> + Fn() -> T
+{
+    handler.execute(context)?;
+    Ok(())
+}
 
 pub struct ComboValidationStrategy<T: 'static> {
     static_strategies: Vec<Box<dyn ValidationStrategy<T>>>,
@@ -60,28 +116,147 @@ impl ValidationStrategy<i32> for NestedValidationStrategy {
     }
 }
 
-
-pub struct ClosureValidationStrategy<T> {
-    validation_fn: Box<dyn Fn(&T) -> bool>,
-    _phantom: PhantomData<T>,
-}
-
-impl<T> ClosureValidationStrategy<T> {
-    pub fn new(validation_fn: Box<dyn Fn(&T) -> bool>) -> Self {
-        ClosureValidationStrategy {
-            validation_fn,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<T: 'static> ValidationStrategy<T> for ClosureValidationStrategy<T> {
-    fn is_valid(&self, value: &T) -> bool {
-        (self.validation_fn)(value)
+// A validation strategy that always returns true
+pub struct AlwaysValid;
+impl<T: 'static> ValidationStrategy<T> for AlwaysValid {
+    fn is_valid(&self, _input: &T) -> bool {
+        true
     }
 
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
+    }
+}
+
+// A validation strategy that always returns false
+pub struct AlwaysInvalid;
+impl<T: 'static> ValidationStrategy<T> for AlwaysInvalid {
+    fn is_valid(&self, _input: &T) -> bool {
+        false
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is equal to the given value
+pub struct Equals<T: 'static>(T);
+impl<T: 'static + PartialEq> Equals<T> {
+    pub fn new(value: T) -> Self {
+        Equals(value)
+    }
+}
+
+impl<T: 'static + PartialEq> ValidationStrategy<T> for Equals<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input == &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is not equal to the given value
+pub struct NotEquals<T: 'static>(T);
+impl<T: 'static + PartialEq> NotEquals<T> {
+    pub fn new(value: T) -> Self {
+        NotEquals(value)
+    }
+}
+impl<T: 'static + PartialEq> ValidationStrategy<T> for NotEquals<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input != &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is greater than the given value
+pub struct GreaterThan<T: 'static>(T);
+impl<T: 'static + PartialOrd> GreaterThan<T> {
+    pub fn new(value: T) -> Self {
+        GreaterThan(value)
+    }
+}
+impl<T: 'static + PartialOrd> ValidationStrategy<T> for GreaterThan<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input > &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is greater than or equal to the given value
+pub struct GreaterThanOrEqual<T: 'static>(T);
+impl<T: 'static + PartialOrd> GreaterThanOrEqual<T> {
+    pub fn new(value: T) -> Self {
+        GreaterThanOrEqual(value)
+    }
+}
+impl<T: 'static + PartialOrd> ValidationStrategy<T> for GreaterThanOrEqual<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input >= &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is less than the given value
+pub struct LessThan<T: 'static>(T);
+impl<T: 'static + PartialOrd> LessThan<T> {
+    pub fn new(value: T) -> Self {
+        LessThan(value)
+    }
+}
+impl<T: 'static + PartialOrd> ValidationStrategy<T> for LessThan<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input < &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is less than or equal to the given value
+pub struct LessThanOrEqual<T: 'static>(T);
+impl<T: 'static + PartialOrd> LessThanOrEqual<T> {
+    pub fn new(value: T) -> Self {
+        LessThanOrEqual(value)
+    }
+}
+impl<T: 'static + PartialOrd> ValidationStrategy<T> for LessThanOrEqual<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input <= &self.0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// A validation strategy that returns true if the input is between the given values
+pub struct Between<T: 'static>(T, T);
+impl<T: 'static + PartialOrd> Between<T> {
+    pub fn new(min: T, max: T) -> Self {
+        Between(min, max)
+    }
+}
+impl<T: 'static + PartialOrd> ValidationStrategy<T> for Between<T> {
+    fn is_valid(&self, input: &T) -> bool {
+        input >= &self.0 && input <= &self.1
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -134,6 +309,8 @@ impl ValidationStrategy<i32> for NumberValidation {
     }
 }
 
+
+
 pub trait ValidationStrategy<T: 'static> {
     fn is_valid(&self, input: &T) -> bool;
     fn as_any(&self) -> &dyn Any;
@@ -145,9 +322,6 @@ pub struct Validation<T: 'static> {
 }
 
 impl<T: 'static> Validation<T> {
-
-
-    // Creates a new Validation with no strategies or children
     pub fn new() -> Self {
         Validation {
             strategies: Vec::new(),
@@ -155,9 +329,6 @@ impl<T: 'static> Validation<T> {
         }
     }
 
-
-    // Add a strategy to the validation. The strategy will be executed when the validation is
-    // performed. 
     pub fn add_strategy<S>(&mut self, strategy: S)
     where
         S: ValidationStrategy<T> + 'static,
@@ -165,8 +336,6 @@ impl<T: 'static> Validation<T> {
         self.strategies.push(Box::new(strategy));
     }
     
-    // Add a list of strategies to the validation. The strategies will be executed when the
-    // validation is performed. 
     pub fn add_strategies<S>(&mut self, strategies: Vec<S>)
     where
         S: ValidationStrategy<T> + 'static,
@@ -176,58 +345,22 @@ impl<T: 'static> Validation<T> {
         }
     }
 
-    // Add a child validation to the validation. The child validation will be executed when the
-    // validation of the parent is performed. 
     pub fn add_child(&mut self, child: Validation<T>) {
         self.children.push(child);
     }
 
-    // Remove a strategy from the validation. The strategy will no longer be executed when the
-    // validation is performed.
     pub fn remove_strategy(&mut self, strategy: &dyn Any) {
         self.strategies.retain(|s| !std::ptr::eq(s.as_any(), strategy));
     }
 
-    // Remove a child validation from the validation. The child validation will no longer be
-    // executed when the validation of the parent is performed.
     pub fn remove_child(&mut self, child: &Validation<T>) {
         self.children.retain(|c| !std::ptr::eq(c, child));
     }
 
-    // Perform the validation on a list of inputs. Returns a list of booleans indicating whether
-    // each input is valid or not.
     pub fn batch_process(&self, inputs: &[T]) -> Vec<bool> {
         inputs.iter().map(|input| self.is_valid(input)).collect()
     }
 
-    // Perform the validation on a list of inputs. Returns a list of booleans indicating whether
-    // each input is valid or not. The context is passed to the validation strategies and can be
-    // used to store state between validations. This is useful when the validation strategies
-    // need to be stateful.
-    pub fn batch_process_with_context<C>(&self, inputs: &[T], context: &C) -> Vec<bool>
-    where
-        C: 'static,
-    {
-        inputs
-            .iter()
-            .map(|input| self.is_valid_with_context(input, context))
-            .collect()
-    }
-
-
-    // Perform the validation on a single input. Returns a boolean indicating whether the input is
-    // valid or not. The context is passed to the validation strategies and can be used to store 
-    // state between validations. 
-    pub fn is_valid_with_context<C>(&self, input: &T, context: &C) -> bool
-    where
-        C: 'static,
-    {
-        self.strategies.iter().all(|strategy| strategy.is_valid(input)) &&
-        self.children.iter().all(|child| child.is_valid_with_context(input, context))
-    }
-
-    // Perform the validation on a single input. Returns a boolean indicating whether the input
-    // is valid or not. 
     pub fn is_valid(&self, input: &T) -> bool {
         self.strategies.iter().all(|strategy| strategy.is_valid(input)) &&
         self.children.iter().all(|child| child.is_valid(input))
@@ -235,7 +368,19 @@ impl<T: 'static> Validation<T> {
 }
 
 
+
 trait ValidatorStrategy<T> {
+// type that implements the trait:
+    // any 
+    // Eq 
+    // PartialEq 
+    // PartialOrd 
+    // Ord 
+    // Hash 
+    // Debug 
+    // Display 
+    // Default 
+    // Copy 
     fn validate(&self, data: &T) -> bool;
 }
 
@@ -261,6 +406,7 @@ impl<T: 'static> Validator<T> {
         }
     }
 
+
     pub fn add_strategy(&mut self, strategy: Box<dyn ValidationStrategy<T>>) {
         self.strategies.push(strategy);
     }
@@ -275,8 +421,7 @@ impl<T: 'static> Validator<T> {
         self.strategies.retain(|s| !std::ptr::eq(s.as_any(), strategy));
     }
 
-    // Perform the validation on the data. Returns a boolean indicating whether the data is valid
-    // or not. 
+
     pub fn validate(&self) -> bool {
         self.strategies.iter().all(|strategy| strategy.is_valid(&self.data))
     }
@@ -362,141 +507,10 @@ impl<T: 'static> ValidationStrategyBuilder<T> {
     }
 }
 
-pub struct ValidationConfigBuilder<T> {
-    strategies: Vec<Box<dyn ValidationStrategy<T>>>,
-}
-
-impl<T> ValidationConfigBuilder<T> {
-    pub fn new() -> Self {
-        ValidationConfigBuilder {
-            strategies: Vec::new(),
-        }
-    }
-
-    pub fn with_strategy(mut self, strategy: Box<dyn ValidationStrategy<T>>) -> Self {
-        self.strategies.push(strategy);
-        self
-    }
-
-    pub fn build(self) -> ValidationConfig<T> {
-        ValidationConfig {
-            strategies: self.strategies,
-        }
-    }
-}
-
-pub struct ValidationConfig<T> {
-    strategies: Vec<Box<dyn ValidationStrategy<T>>>,
-}
-
-impl<T: 'static> ValidationConfig<T> {
-    pub fn new() -> Self {
-        Self { strategies: Vec::new() }
-    }
-
-    pub fn add_strategy(&mut self, strategy: Box<dyn ValidationStrategy<T>>) {
-        self.strategies.push(strategy);
-    }
-
-    
-
-    pub fn validate(&self, input: &T) -> bool {
-        self.strategies.iter().all(|strategy| strategy.is_valid(input))
-    }
-}
-
-
-pub enum ValidationLogic<T> {
-    // All strategies must be valid for the input to be valid
-    All(Vec<Box<dyn ValidationStrategy<T>>>), 
-    // Any strategy must be valid for the input to be valid
-    Any(Vec<Box<dyn ValidationStrategy<T>>>),
-    // The input must be valid for all strategies to be valid (the opposite of All)
-    None(Vec<Box<dyn ValidationStrategy<T>>>),
-    // The input must be valid for any strategy to be valid (the opposite of Any)
-    Not(Vec<Box<dyn ValidationStrategy<T>>>),
-}
-    
-impl<T: 'static> ValidationLogic<T> {
-    pub fn validate(&self, input: &T) -> bool {
-        match self {
-            ValidationLogic::All(strategies) => strategies.iter().all(|strategy| strategy.is_valid(input)),
-            ValidationLogic::Any(strategies) => strategies.iter().any(|strategy| strategy.is_valid(input)),
-            ValidationLogic::None(strategies) => strategies.iter().all(|strategy| !strategy.is_valid(input)),
-            ValidationLogic::Not(strategies) => strategies.iter().any(|strategy| !strategy.is_valid(input)),
-        }
-    }
-}
 
 
 
-pub enum BitwiseOperator {
-    And,
-    Or,
-    Xor,
-    Not,
-}
 
-pub struct BitwiseValidation<T> {
-    strategies: Vec<Box<dyn ValidationStrategy<T>>>,
-    operator: BitwiseOperator,
-}
-
-impl<T: 'static> BitwiseValidation<T> {
-    pub fn new(operator: BitwiseOperator) -> Self {
-        Self {
-            strategies: Vec::new(),
-            operator,
-        }
-    }
-
-    pub fn add_strategy(&mut self, strategy: Box<dyn ValidationStrategy<T>>) {
-        self.strategies.push(strategy);
-    }
-
-    pub fn validate(&self, input: &T) -> bool {
-        match self.operator {
-            BitwiseOperator::And => self.strategies.iter().all(|strategy| strategy.is_valid(input)),
-            BitwiseOperator::Or => self.strategies.iter().any(|strategy| strategy.is_valid(input)),
-            BitwiseOperator::Xor => self.strategies.iter().fold(false, |acc, strategy| acc ^ strategy.is_valid(input)),
-            BitwiseOperator::Not => self.strategies.iter().fold(false, |acc, strategy| acc ^ strategy.is_valid(input)),
-        }
-    }
-}
-
-pub enum ComparisonOperator {
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,    
-}
-
-pub struct ComparisonValidation<T> {
-    value: T,
-    operator: ComparisonOperator,
-}
-
-impl<T: PartialOrd> ComparisonValidation<T> {
-    pub fn new(value: T, operator: ComparisonOperator) -> Self {
-        Self {
-            value,
-            operator,
-        }
-    }
-
-    pub fn validate(&self, input: &T) -> bool {
-        match self.operator {
-            ComparisonOperator::Equal => input == &self.value,
-            ComparisonOperator::NotEqual => input != &self.value,
-            ComparisonOperator::GreaterThan => input > &self.value,
-            ComparisonOperator::GreaterThanOrEqual => input >= &self.value,
-            ComparisonOperator::LessThan => input < &self.value,
-            ComparisonOperator::LessThanOrEqual => input <= &self.value,
-        }
-    }
-}
 
 
 
@@ -507,7 +521,15 @@ impl<T: PartialOrd> ComparisonValidation<T> {
 mod tests {
     use super::*;
 
-
+    #[test]
+    fn test_param_from_context() {
+        let context = Context {
+            param: "test_param".to_string(),
+            id: 1,
+        };
+        let param = Param::from_context(&context);
+        assert_eq!(param.0, "test_param");
+    }
 
     #[test]
     fn test_length_validation() {
@@ -533,15 +555,162 @@ mod tests {
     #[test]
     fn test_validator_factory() {
         let mut factory: ValidatorFactory<i32> = ValidatorFactory::new();
-        let validator = factory.create_validator();
+        let mut validator = factory.create_validator();
         validator.add_strategy(NumberValidation);
         assert!(factory.validators[0].is_valid(&6));
         assert!(!factory.validators[0].is_valid(&5));
     }
 
+    #[test]
+    fn test_always_valid() {
+        let strategy = AlwaysValid;
+        assert!(strategy.is_valid(&5));
+        assert!(strategy.is_valid(&"hello"));
+    }
 
-  
-     
+    #[test]
+    fn test_always_invalid() {
+        let strategy = AlwaysInvalid;
+        assert!(!strategy.is_valid(&5));
+        assert!(!strategy.is_valid(&"hello"));
+    }
+
+    #[test]
+    fn test_equals() {
+        let strategy = Equals::new(5);
+        assert!(strategy.is_valid(&5));
+        assert!(!strategy.is_valid(&6));
+    }
+
+    #[test]
+    fn test_not_equals() {
+        let strategy = NotEquals::new(5);
+        assert!(!strategy.is_valid(&5));
+        assert!(strategy.is_valid(&6));
+    }
+
+    #[test]
+    fn test_greater_than() {
+        let strategy = GreaterThan::new(5);
+        assert!(strategy.is_valid(&6));
+        assert!(!strategy.is_valid(&5));
+    }
+
+    #[test]
+    fn test_greater_than_or_equal() {
+        let strategy = GreaterThanOrEqual::new(5);
+        assert!(strategy.is_valid(&5));
+        assert!(strategy.is_valid(&6));
+        assert!(!strategy.is_valid(&4));
+    }
+
+    #[test]
+    fn test_less_than() {
+        let strategy = LessThan::new(5);
+        assert!(strategy.is_valid(&4));
+        assert!(!strategy.is_valid(&5));
+    }
+
+    #[test]
+    fn test_less_than_or_equal() {
+        let strategy = LessThanOrEqual::new(5);
+        assert!(strategy.is_valid(&5));
+        assert!(strategy.is_valid(&4));
+        assert!(!strategy.is_valid(&6));
+    }
+
+    #[test]
+    fn test_between() {
+        let strategy = Between::new(5, 10);
+        assert!(strategy.is_valid(&5));
+        assert!(strategy.is_valid(&7));
+        assert!(strategy.is_valid(&10));
+        assert!(!strategy.is_valid(&4));
+        assert!(!strategy.is_valid(&11));
+    }
+
+    // #[test]
+    // fn test_combo_validation_strategy() {
+    //     let static_strategies = vec![Box::new(AlwaysValid)];
+    //     let dynamic_strategies:  <Box<AlwaysInvalid>> + 'static = vec![Box::new(AlwaysInvalid)];
+    //     let strategy = ComboValidationStrategy::new(static_strategies, dynamic_strategies  );
+    //     assert!(!strategy.is_valid(&5));
+    // }
+
+    #[test]
+    fn test_validation() {
+        let mut validation = Validation::new();
+        validation.add_strategy(AlwaysValid);
+        assert!(validation.is_valid(&5));
+
+        validation.add_strategy(AlwaysInvalid);
+        assert!(!validation.is_valid(&5));
+    }
+
+    #[test]
+    fn test_custom_validation_strategy() {
+        let strategy = CustomValidationStrategy::new(|data: &i32| data > &5);
+        assert!(strategy.is_valid(&6));
+        assert!(!strategy.is_valid(&5));
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+    
+        #[test]
+        fn test_complex_validation() {
+            let mut validation = Validation::new();
+            validation.add_strategy(Equals::new(5));
+            validation.add_strategy(GreaterThan::new(3));
+            validation.add_strategy(LessThan::new(10));
+    
+            assert!(validation.is_valid(&5));
+            assert!(!validation.is_valid(&3));
+            assert!(!validation.is_valid(&10));
+        }
+    
+        #[test]
+        fn test_nested_validation() {
+            let mut inner_validation = Validation::new();
+            inner_validation.add_strategy(Equals::new(5));
+    
+            let mut outer_validation = Validation::new();
+            outer_validation.add_child(inner_validation);
+    
+            assert!(outer_validation.is_valid(&5));
+            assert!(!outer_validation.is_valid(&6));
+        }
+    
+        #[test]
+        fn test_validation_builder() {
+            let validation = ValidationBuilder::new()
+                .add_strategy(Equals::new(5))
+                .add_strategy(GreaterThan::new(3))
+                .add_strategy(LessThan::new(10))
+                .build();
+    
+            assert!(validation.is_valid(&5));
+            assert!(!validation.is_valid(&3));
+            assert!(!validation.is_valid(&10));
+        }
+    
+        // #[test]
+        // fn test_nested_validation_builder() {
+        //     let inner_validation = ValidationBuilder::new()
+        //         .add_strategy(Equals::new(5))
+        //         .build();
+    
+        //     let outer_validation = ValidationBuilder::new()
+        //         .add_strategies(inner_validation)           
+        //         .build();
+    
+        //     assert!(outer_validation.is_valid(&5));
+        //     assert!(!outer_validation.is_valid(&6));
+        // }
+    }
+    
+
 
 
 }
