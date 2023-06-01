@@ -176,8 +176,8 @@ fn main() {
     let operation = cog.operation.unwrap();
     operation.apply(&context).unwrap();
 
-    let strategy = cog.strategy.unwrap();
-    strategy.execute(&cog, None, None).unwrap();
+    // let strategy = cog.strategy.unwrap().clone();
+    // strategy.execute(cog, None, None).unwrap();
 }
 
 // The Cog struct

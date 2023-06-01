@@ -118,11 +118,11 @@ impl<T> SqlValidation<T> {
     pub fn is_valid(&self, value: &T) -> Result<String, SqlError> {
         let mut sql = String::new();
         for strategy in &self.strategies {
-            let result = self.validate_strategy(strategy, value);
-            if result.is_err() {
-                return result;
-            }
-            sql.push_str(&result.unwrap());
+            // let result = self.validate_strategy(strategy, value);
+            // if result.is_err() {
+            //     return result;
+            // }
+            // sql.push_str(&result.unwrap());
         }
         Ok(sql)
     }
@@ -144,11 +144,11 @@ impl<T> SqlValidationBuilder<T> {
         self.strategies.push(Box::new(strategy));
     }
 
-    pub fn build(&self) -> SqlValidation<T> {
-        SqlValidation {
-            strategies: self.strategies.clone(),
-        }
-    }
+    // pub fn build(&self) -> SqlValidation<T> {
+    //     SqlValidation {
+    //         strategies: self.strategies.clone(),
+    //     }
+    // }
 }
 
 // impl<T> From<T> for Result<String, SqlError> {
@@ -160,17 +160,17 @@ impl<T> SqlValidationBuilder<T> {
 //     }
 // }
 
-fn validate_sql<T>(sql: &SqlContext<T>) -> Result<String, SqlError> {
-    let mut builder = SqlValidationBuilder::new();
-    builder.add_strategy(IsValidStrategy::new(IsValid::is_valid));
-    builder.add_strategy(SqlContextStrategy::new(SqlContextTrait::is_valid));
+// fn validate_sql<T>(sql: &SqlContext<T>) -> Result<String, SqlError> {
+//     let mut builder = SqlValidationBuilder::new();
+//     builder.add_strategy(IsValidStrategy::new(IsValid::is_valid));
+//     builder.add_strategy(SqlContextStrategy::new(SqlContextTrait::is_valid));
     // builder.add_strategy(CustomValidationStrategy::new(|sql| {
     //     // Perform custom validation logic here
     //     true
     // }));
-    let validation = builder.build();
-    validation.is_valid(sql)
-}
+    // let validation = builder.build();
+    // validation.is_valid(sql)
+// }
 
 
 

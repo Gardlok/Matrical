@@ -253,7 +253,7 @@ mod tests {
         let bottom_right = (2, 2);
         let data = Array2::zeros((3, 3));
 
-        let gear_factory = GearFactoryImpl::new(top_left, bottom_right).data(data);
+        let gear_factory = GearFactoryImpl::new(top_left, bottom_right).data(data.clone());
         let gear = gear_factory.create(top_left, bottom_right);
 
         assert_eq!(gear.top_left, top_left);

@@ -174,10 +174,10 @@ impl<T> MatrixValidation<T> {
 
     pub fn is_valid(&self, value: &T) -> Result<(), MatricalError> {
         for strategy in &self.strategies {
-            let result = self.validate(&value);
-            if result.is_err() {
-                return result;
-            }
+            // let result = self.validate(&value);
+            // if result.is_err() {
+            //     return result;
+            // }
         }
         Ok(())
     }
@@ -201,9 +201,10 @@ impl<T> MatrixValidationBuilder<T> {
     }
 
     pub fn build(&self) -> MatrixValidation<T> {
-        MatrixValidation {
-            strategies: self.strategies.clone(),
-        }
+        // MatrixValidation {
+        //     strategies: self.strategies.clone(),
+        // }
+        MatrixValidation { strategies: Vec::new() }  // todo
     }
 }
 
