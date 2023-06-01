@@ -1,5 +1,7 @@
 use crossbeam::epoch::Atomic;
 
+#[cfg(test)]
+mod tests;
 
 // use ndarray::{Array2, Data, DataMut, Shape};
 // use ndarray::{ArrayBase, Axis, Dim, Ix2, OwnedRepr};
@@ -20,8 +22,6 @@ mod error;
 
 use error::{AtomicBoolError, MatricalError, MatricalErrorType};
 
-
-
 pub mod operations;
 pub use operations::*;
 pub use operations::mechanics::*;
@@ -40,13 +40,14 @@ pub use schematics::vector::*;
 
 
 
+
 // Defines a set of methods that can be used to perform various operations on a given data set.
 //
-pub trait Strategy {
-    fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String>;
-    fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
-    fn result(&self) -> Result<(), String>;
-}
+// pub trait Strategy {
+//     fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String>;
+//     fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
+//     fn result(&self) -> Result<(), String>;
+// }
 
 
 
