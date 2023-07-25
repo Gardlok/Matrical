@@ -14,12 +14,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 
 
-
 // // Error handling
 pub enum MatricalError {
     Regular(MatricalErrorType),
     Custom(String),
+    InvalidValue,
+    InvalidContext,
     ShouldNotOccur,
+    IndexOutOfBounds,
 }
 
 pub enum AtomicBoolError {
@@ -47,6 +49,9 @@ impl fmt::Display for MatricalError {
             MatricalError::Regular(err) => write!(f, "Regular error: {}", err.as_str()),
             MatricalError::Custom(err) => write!(f, "Custom error: {}", err),
             MatricalError::ShouldNotOccur => write!(f, "Other error"),
+            MatricalError::InvalidValue => write!(f, "Invalid value"),
+            MatricalError::InvalidContext => write!(f, "Invalid context"),  
+            MatricalError::IndexOutOfBounds => write!(f, "Index out of bounds"),
         }
     }
 }
