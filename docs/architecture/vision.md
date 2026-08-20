@@ -151,3 +151,12 @@ feature combinations.
 - Preserving unfinished 0.1.0 behavior as a compatibility contract.
 - Using advanced Rust syntax without a measurable correctness, usability, or
   performance benefit.
+
+## Downstream consumers
+
+Concrete consumers may inform acceptance criteria without moving their domain
+model into Matrical. The first recorded input is the
+[longitudinal feature-analysis consumer note](consumers/longitudinal-feature-analysis.md).
+It treats application identities, capture semantics, missingness meaning, and
+domain interpretation as downstream responsibilities while exercising
+Matrical's numeric selection, transformation, policy, and provenance contracts.

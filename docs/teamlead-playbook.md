@@ -54,7 +54,7 @@ baseline before implementing.
 The Teamlead prompt must contain:
 
 - mission and user value;
-- accepted starting SHA;
+- accepted starting SHA and tree;
 - owned files or modules;
 - required behavior and invariants;
 - explicit non-goals;
@@ -65,6 +65,12 @@ The Teamlead prompt must contain:
 
 Prompts should ask the developer to reassess the validation ladder from the
 actual final diff rather than blindly execute a stale command list.
+
+A durable repository template may require the Teamlead dispatch to inject its
+exact starting commit and tree. This is necessary when the merge containing the
+template or its prerequisite closeout determines the final baseline. The
+dispatch—not the template's prediction—becomes authoritative, and the developer
+must verify both values before implementation.
 
 ### 3. Focused development branch and draft PR
 
@@ -158,3 +164,9 @@ version 0.1.0
 The initial documentation foundation does not accept the historical source as a
 working API. It establishes the process by which that source will be classified,
 replaced, tested, and eventually released.
+
+PR #1 established that foundation on accepted `main` commit
+`b929e48481ae7ab41c972447b1547671afe4a4d8`, tree
+`70d63b16f8d38da6de26d18c15b71c773e2b8f53`. Later session dispatches must use
+the current accepted `main` identity rather than treating this R0 provenance as
+a permanently executable baseline.
