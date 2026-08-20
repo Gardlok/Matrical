@@ -1,38 +1,98 @@
 # Matrical
 
-## Overview
-Matrical is a Rust library aimed to be a powerful and flexible way to manage and manipulate matrices. The library is currently under active development and is not yet ready for production use. However, it is open for contributions from anyone interested in its development.
+**Status: rehabilitation campaign — architecture experiment, not production-ready**
 
-## Intended Purposes
-Simple. Worthy. Strategic.
+Matrical is an experimental Rust library for expressing matrix work as a
+combination of selection, transformation, context, and metadata.
 
-## Roadmap
-While Matrical is still in the early stages of development, the following is a rough roadmap of planned features and improvements:
+The original prototype explored generic elements, concurrent containers,
+runtime strategies, validation, database-backed data, and zero-copy views. The
+rehabilitation campaign is retaining the most distinctive part of that work—the
+nomenclature and semantic model—while rebuilding the implementation around
+small, testable invariants.
 
-Enhance Gear and Cog Functionality: This relationship allows for a high degree of flexibility and precision in managing matrix operations. By using Cogs to provide context and Gears to apply targeted operations, you can handle complex matrix operations in a more efficient and controlled manner.
+Matrical is not currently ready for crates.io consumers. The public API may
+change substantially while the core is reconstructed.
 
-Database integration: SurrealDb is an embedded database with multiparadigm support, including key-value, relational, document, and graph databases. Matrical will default to using SurrealDB for its database integration, but it should also provide support for other database systems. 
+## The model
 
-Automatic Parallelization: Matrical will automatically parallelize operations on matrices when possible using Rayon. This will allow for more efficient computation of large matrices. 
+Matrical's working vocabulary is:
 
-Thread safety: Matrical will be thread safe, allowing for concurrent access to matrices. Using Crossbeam, Matrical will provide support for concurrent reads and writes to matrices down to the element level. Most of the operations are already thread safe, but there are still a few that need to be worked on to ensure full thread safety.
+- **Matrix** — the owned data and its validated shape.
+- **Lens** — a bounded view or selection over matrix data.
+- **Gear** — a transformation applied through a Lens.
+- **Cog** — context or policy that influences a Gear.
+- **Tag** — metadata or provenance attached to data or an operation.
 
-Zero Copy: Matrical will use zero copy techniques to avoid unnecessary copying of data. This will allow for more efficient memory usage and faster computation. 
+The intended flow is:
 
-## Strategy and Factory Patterns
-The Strategy pattern is a behavioral design pattern that enables an algorithm's behavior to be selected at runtime. In the context of Matrical, we use the Strategy pattern to define a family of algorithms, encapsulate each one, and make them interchangeable. This allows the algorithm to vary independently from clients that use it, in runtime!. For instance, different strategies can be applied to manipulate the matrix data based on the associated "Gear" or "Cog", change the current view of the matrix elements by changing the "Lens". 
+```text
+Matrix -> Lens -> Gear (+ Cog) -> result (+ Tags)
+```
 
-The Factory pattern is a creational design pattern that provides an interface for creating objects in a superclass, but allows subclasses to alter the type of objects that will be created. In Matrical, we use the Factory pattern to create different types of "Gears" or "Cogs", each with their unique behaviors and operations.
+These names are not decorative aliases. Each concept must own a distinct,
+documented responsibility and must preserve the Matrix invariants.
+
+## Direction
+
+The recommended direction is a semantic matrix-transformation library built on
+proven storage and numerical foundations. Matrical should differentiate itself
+through validated regions, composable views, contextual transformations, and
+provenance—not by reimplementing every linear-algebra kernel.
+
+The campaign begins with a deliberately narrow sequence:
+
+1. establish a reproducible build and truthful project baseline;
+2. rebuild `Matrix`, shape, index, region, and error invariants;
+3. introduce safe immutable and mutable Lenses;
+4. introduce testable Gears, Cogs, and Tags;
+5. add examples, property tests, benchmarks, and measured optimization;
+6. evaluate optional parallel and persistent backends only after the sequential
+   contract is sound.
+
+See the [rehabilitation roadmap](docs/roadmap.md) for slice boundaries and exit
+criteria.
+
+## Design principles
+
+- Correctness before cleverness.
+- Invalid shape and region states should be difficult or impossible to create.
+- Public fallible operations return typed errors rather than panic.
+- Zero-copy views borrow from their source and make that relationship explicit.
+- Concurrency and parallelism require defined semantics and measured benefit.
+- Advanced Rust features are used when they strengthen the contract, not merely
+  to demonstrate sophistication.
+- Dependencies must have an implemented purpose and a bounded feature surface.
+- Documentation, examples, and tests are part of the API.
+
+## Repository guide
+
+- [Documentation map](docs/README.md)
+- [Architecture vision](docs/architecture/vision.md)
+- [Rehabilitation roadmap](docs/roadmap.md)
+- [Active development](docs/active-development.md)
+- [Testing procedures](docs/testing-procedures.md)
+- [Teamlead campaign playbook](docs/teamlead-playbook.md)
+- [Contributing](CONTRIBUTING.md)
+
+## Current limitations
+
+The historical source contains incomplete and placeholder APIs. In particular,
+the current `Matrix` abstraction is not yet a usable two-dimensional container,
+some validation paths do not execute their configured strategies, and core
+matrix tests and examples are absent. The first implementation slices will
+replace or remove those paths rather than claim compatibility with unfinished
+behavior.
+
+No stability, performance, thread-safety, zero-copy, database-integration, or
+release-readiness claim should be inferred until its roadmap gate has passed.
 
 ## Contributing
-Contributions to Matrical are welcome and appreciated. Whether you're fixing bugs, adding new features, improving performance, or enhancing documentation, your contributions can help make Matrical a powerful tool for working with matrices in Rust. 
 
-Before contributing, please read the CONTRIBUTING.md file for guidelines on how to contribute to this project.
+Matrical is being rehabilitated through small, focused development sessions and
+reviewable pull requests. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[active campaign record](docs/active-development.md) before selecting work.
 
 ## License
-Matrical is licensed under the MIT License.
 
-## Disclaimer
-Please note that Matrical is currently under active development and is not yet ready for production use. Use at your own risk. We appreciate your patience and contributions as we work to improve this library.
-
-
+Matrical is licensed under the [MIT License](LICENSE).
