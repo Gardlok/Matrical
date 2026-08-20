@@ -11,6 +11,8 @@ Rust source and executable tests remain authoritative for implemented behavior.
 - [`roadmap.md`](roadmap.md) — ordered rehabilitation slices and exit gates.
 - [`architecture/vision.md`](architecture/vision.md) — proposed product model,
   nomenclature, boundaries, and non-goals.
+- [`architecture/consumers/longitudinal-feature-analysis.md`](architecture/consumers/longitudinal-feature-analysis.md)
+  — non-binding design input from a prospective analytical consumer.
 - [`testing-procedures.md`](testing-procedures.md) — local validation standard
   adapted from the disciplined ROSE procedure.
 - [`teamlead-playbook.md`](teamlead-playbook.md) — fresh-session prompts, PR

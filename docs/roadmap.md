@@ -1,8 +1,10 @@
 # Matrical rehabilitation roadmap
 
-**Campaign baseline:** `6deb812e11a519404fec90408bf95651764cd2f8`
+**Historical source baseline:** `6deb812e11a519404fec90408bf95651764cd2f8`
 
-**Current phase:** R0 — documentation and campaign foundation
+**Accepted R0 merge:** `b929e48481ae7ab41c972447b1547671afe4a4d8`
+
+**Current phase:** R0 foundation closeout; R1-A queued for exact-SHA dispatch
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -37,7 +39,7 @@ Exit gate:
 - documentation is internally consistent;
 - links and diff hygiene pass;
 - no executable claim is added;
-- owner decisions remain visibly unresolved rather than silently assumed.
+- accepted owner decisions and remaining proposals are distinguished explicitly.
 
 ## R1 — Reproduce and classify the historical baseline
 
@@ -46,7 +48,8 @@ historical residue.
 
 Planned work:
 
-- select and record an MSRV and development toolchain policy;
+- verify the accepted Rust 1.85.0 MSRV and record a development toolchain
+  policy;
 - establish the repository `Cargo.lock` policy;
 - run compile, unit-test, rustdoc, and Clippy reconnaissance without broad
   cleanup;
@@ -71,6 +74,8 @@ Planned work:
 - public `MatricalError` contract;
 - checked `Shape`, `Index`, and rectangular `Region` types;
 - owned dense `Matrix<T>` construction and access;
+- an explicit decision on whether validity masks belong in Matrical core, a
+  paired structure, or a downstream wrapper;
 - deterministic iteration and conversion behavior;
 - rustdoc examples and boundary-focused tests;
 - removal or quarantine of queue-based placeholder storage.
@@ -108,6 +113,9 @@ Exit gate:
 Planned work:
 
 - a minimal Gear trait or operation protocol;
+- distinct read-only and mutating transformation contracts unless working Lens
+  evidence justifies another effect-safe design;
+- first-class downstream-defined Gears without a required runtime registry;
 - several concrete transformations with deterministic behavior;
 - typed Cog requirements and validation;
 - bounded Tag/provenance representation;
@@ -148,8 +156,11 @@ Exit gate:
 Planned work:
 
 - Criterion benchmarks for representative shapes and operations;
+- tall, moderately narrow consumer shapes including `32 x 24`, `1,024 x 64`,
+  and `100,000 x 64` where host resources permit;
 - allocation and copy accounting for Lens and Gear paths;
 - comparison against direct underlying-storage operations;
+- a stated overhead budget relative to direct `ndarray` operations;
 - profiling before layout or dispatch changes;
 - optional Rayon-backed execution only where thresholds show benefit.
 

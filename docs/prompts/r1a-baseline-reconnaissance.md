@@ -1,10 +1,32 @@
 # R1-A implementation prompt — historical baseline reconnaissance
 
-**State:** DRAFT — do not dispatch until R0 is merged and owner-accepted
+**State:** TEMPLATE READY — requires an exact Teamlead dispatch baseline
 
 **Repository:** `Gardlok/Matrical`
 
-**Required starting SHA:** `<accepted R0 merge SHA>`
+**Accepted R0 predecessor:**
+`b929e48481ae7ab41c972447b1547671afe4a4d8`
+
+**Required starting commit and tree:** supplied by the Teamlead at dispatch
+
+Do not execute this repository template directly. The Teamlead dispatch must
+name the exact current `main` commit and tree after all prerequisite
+documentation merges. Stop if either value is absent or does not match the clean
+checkout.
+
+## Accepted campaign decisions
+
+- semantic matrix-transformation library over mature numerical storage;
+- initial dense storage based on `ndarray::Array2<T>`;
+- Rust 1.85.0 initial MSRV;
+- no compatibility promise for unfinished 0.1.0 prototype APIs;
+- 0.2.0 first rehabilitated release target, subject to R8 qualification;
+- SurrealDB deferred outside the immediate dependency graph;
+- sequential and deterministic execution first;
+- crates.io publication remains release-gated.
+
+These decisions guide classification. They do not authorize implementation
+changes in R1-A.
 
 ## Mission
 
@@ -26,6 +48,7 @@ Before changing any file:
 3. inspect open PRs, issues, and non-default branches for overlapping work;
 4. read `README.md`, `CONTRIBUTING.md`, `docs/active-development.md`,
    `docs/roadmap.md`, `docs/architecture/vision.md`,
+   `docs/architecture/consumers/longitudinal-feature-analysis.md`,
    `docs/testing-procedures.md`, and `docs/teamlead-playbook.md`;
 5. inspect `Cargo.toml`, presence or absence of `Cargo.lock`, all Rust modules,
    tests, examples, benches, and CI configuration;
@@ -57,7 +80,8 @@ Attempt the MVECv1 ladder appropriate to the unchanged historical source:
 - `cargo test --doc`;
 - `cargo clippy --all-targets` as classification evidence, not as authorization
   to fix every warning;
-- documentation generation or examples only where those targets exist.
+- `cargo doc --no-deps` when compilation permits;
+- examples only where those targets exist.
 
 Capture explicit exit statuses and the first complete root-cause failure for each
 blocked phase. Do not repeatedly rerun unexplained failures until one passes.
@@ -76,6 +100,10 @@ Classify, with file and line references:
 - concurrency primitives without defined composite semantics;
 - dependencies present only as architectural placeholders;
 - documentation claims unsupported by executable evidence.
+
+For each direct dependency, distinguish implemented use from historical intent.
+In particular, classify SurrealDB, Crossbeam, DashMap, Rayon, Serde, and
+benchmarking dependencies without removing or upgrading them in this slice.
 
 Do not turn this report into a full redesign proposal. Relate findings to the
 accepted architecture vision and identify the smallest likely R1-B repair
@@ -132,6 +160,7 @@ Return:
 
 ```text
 Starting SHA:
+Starting tree:
 Final SHA:
 Branch:
 Draft PR:
