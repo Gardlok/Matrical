@@ -1,6 +1,6 @@
 # Matrical active development
 
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-24
 
 ## Accepted campaign baseline
 
@@ -31,11 +31,11 @@ release-ready.
 
 **R1-A implementation/evidence:** COMPLETE
 
-**R1-A documentation:** LOCAL REVIEW CANDIDATE
+**R1-A documentation:** PUBLISHED IN DRAFT PR #3 — REVIEW CANDIDATE
 
-**R1-A publication:** OWNER GATE
+**R1-A merge:** OWNER GATE
 
-**R1-B:** BLOCKED UNTIL R1-A DOCUMENTATION IS ACCEPTED AND MERGED
+**R1-B:** BLOCKED UNTIL DRAFT PR #3 IS ACCEPTED AND MERGED
 
 R1-A was dispatched from the exact accepted commit and tree above. Its
 reconnaissance report is
@@ -109,11 +109,14 @@ for R2 through R6 while leaving their exact APIs open to evidence and review.
 
 ## Current authorized work
 
-R1-A documentation is at the local review gate. The report preserves the
-initial cloud limitation, incorporates the completed Orion investigation, and
-recommends a reproducibility-first R1-B boundary: explicit dependency and
-lockfile policy, evidence-led dependency pruning beginning with SurrealDB, valid
-Cargo metadata, and complete Rust 1.85 requalification.
+R1-A documentation is published in draft PR
+[#3](https://github.com/Gardlok/Matrical/pull/3) as a review candidate and awaits
+Teamlead/owner merge acceptance. The report preserves the initial cloud
+limitation, incorporates the completed Orion investigation, and recommends a
+reproducibility-first R1-B boundary: explicit dependency and lockfile policy,
+evidence-led dependency pruning beginning with SurrealDB, valid Cargo metadata,
+and complete Rust 1.85 requalification.
 
 R1-A does not authorize Rust-source, manifest, dependency, CI, version, or API
-changes. No R1-B work or publication action is authorized by this record.
+changes. This record does not mark PR #3 ready, authorize its merge, or authorize
+R1-B work.

@@ -4,8 +4,9 @@
 
 **Executable continuation:** 2026-08-21
 
-**Status:** R1-A implementation/evidence complete; documentation is a local
-review candidate; publication remains at the owner gate
+**Status:** R1-A implementation/evidence complete; documentation is published
+in draft PR [#3](https://github.com/Gardlok/Matrical/pull/3) as a review
+candidate; merge awaits Teamlead/owner acceptance
 
 ## Scope and evidence boundary
 
@@ -533,7 +534,7 @@ The documentation worktree retains only the two authorized paths for review.
 - Passing 24 tests still supplies no meaningful Matrix, Lens, Cog, Tag, error,
   builder-invariant, or downstream semantic coverage.
 
-R1-A implementation and evidence are complete. The documentation is a local
-review candidate, publication remains at the owner gate, and R1-B remains
-blocked until this documentation is accepted and merged. The library baseline
-itself is not fully qualified.
+R1-A implementation and evidence are complete. The documentation is published
+in draft PR [#3](https://github.com/Gardlok/Matrical/pull/3) as a review
+candidate, merge remains at the owner gate, and R1-B remains blocked until PR #3
+is accepted and merged. The library baseline itself is not fully qualified.
