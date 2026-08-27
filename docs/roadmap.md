@@ -4,7 +4,9 @@
 
 **Accepted R0 merge:** `b929e48481ae7ab41c972447b1547671afe4a4d8`
 
-**Current phase:** R0 foundation closeout; R1-A queued for exact-SHA dispatch
+**Accepted R1-A merge:** `1c5ec09346f249496f1bb2e72095e073b348568a`
+
+**Current phase:** R1-B local review candidate; R1-C blocked
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -46,6 +48,12 @@ Exit gate:
 **Goal:** establish what builds, what fails, and which dependencies or APIs are
 historical residue.
 
+Current progression:
+
+- R1-A reconnaissance is owner-accepted and merged in PR #3;
+- R1-B dependency/MSRV reproducibility is at the local Teamlead review gate;
+- R1-C source correctness remains blocked until R1-B is accepted and merged.
+
 Planned work:
 
 - verify the accepted Rust 1.85.0 MSRV and record a development toolchain
@@ -55,7 +63,8 @@ Planned work:
   cleanup;
 - classify compiler errors, warnings, unused dependencies, empty modules,
   placeholders, panic paths, and unreachable APIs;
-- establish minimal CI for the accepted toolchain and one current stable lane;
+- establish minimal CI for the accepted toolchain and one current stable lane
+  in a later bounded R1 slice;
 - record whether 0.1.0 is treated as an unpublished prototype API.
 
 Exit gate:

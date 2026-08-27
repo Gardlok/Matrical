@@ -2,7 +2,7 @@
 
 **Standard:** Matrical Validation Environment Contract v1 (`MVECv1`)
 
-**Status:** proposed rehabilitation testing standard
+**Status:** accepted campaign validation standard
 
 ## Purpose
 
@@ -60,6 +60,27 @@ Executable evidence belongs to that exact functional SHA. A documentation-only
 follow-up may reference earlier evidence but must not claim that the executable
 checks ran against the documentation commit.
 
+### Use the accepted toolchain lanes
+
+Rust 1.85.0 is Matrical's default toolchain and current MSRV qualification lane.
+The repository `rust-toolchain.toml` pins that version with the minimal profile
+and the Rustfmt and Clippy components used by the validation ladder.
+
+Run the secondary current-stable comparison lane with an explicit `+stable`
+override. A stable result does not substitute for or qualify the Rust 1.85.0
+lane.
+
+### Preserve the accepted lockfile
+
+Matrical commits its root `Cargo.lock` for reproducible campaign and CI
+qualification. Downstream library users remain free to resolve dependencies
+within Matrical's published constraints.
+
+After the lockfile is generated, every Cargo validation command must use
+`--locked`. A command that changes the lockfile or requires an unlocked
+resolution is a failed reproducibility check and must be classified before
+continuing.
+
 ### Keep build products private and reusable
 
 On Orion and similar hosts, prefer home-backed cache storage over a constrained
@@ -100,9 +121,8 @@ Confirm:
 - sufficient bytes and inodes for build roots;
 - no unrelated Cargo process owns the same target or fixture root.
 
-The R1 baseline slice will establish the accepted MSRV, current-stable lane, and
-`Cargo.lock` policy. Until then, every result must state the toolchain and whether
-dependency resolution changed.
+Every result must state the exact toolchain lane and whether the committed
+lockfile changed.
 
 ## Validation ladder
 
@@ -125,11 +145,12 @@ not run Rust formatting merely to manufacture evidence.
 For the current single-crate layout:
 
 ```bash
-cargo check --all-targets
+cargo +1.85.0 check --locked --all-targets
 ```
 
-Once an accepted lockfile policy exists, use `--locked` for reproducible
-validation. Feature-specific work must name the relevant feature set.
+Feature-specific work must name the relevant feature set. Repeat the applicable
+comparison checks with an explicit `+stable` override when the changed boundary
+requires the secondary lane.
 
 ### Step 4: Focused tests
 
@@ -140,20 +161,20 @@ is not evidence.
 ### Step 5: Full affected-crate tests
 
 ```bash
-cargo test --all-targets
-cargo test --doc
+cargo +1.85.0 test --locked --all-targets
+cargo +1.85.0 test --locked --doc
 ```
 
 Run examples when public behavior or documentation changes:
 
 ```bash
-cargo run --example <name>
+cargo +1.85.0 run --locked --example <name>
 ```
 
 ### Step 6: Scope-appropriate Clippy
 
 ```bash
-cargo clippy --all-targets -- -D warnings
+cargo +1.85.0 clippy --locked --all-targets -- -D warnings
 ```
 
 During historical-debt slices, the Teamlead may accept a classified inherited
