@@ -14,7 +14,9 @@
 
 **Accepted R2 merge:** `2f76a87e171a32a58a6d7244fdeb1b8794fc043a`
 
-**Current phase:** R3 active
+**Accepted R3 merge:** `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`
+
+**Current phase:** R4 active
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -37,48 +39,17 @@ should not bypass an earlier invariant or acceptance gate.
 **Goal:** replace stale project claims with truthful documentation and a durable
 rehabilitation workflow.
 
-Deliverables:
-
-- current README and contribution guide;
-- architecture vision and nomenclature contract;
-- slice-based roadmap;
-- local testing and evidence procedure;
-- Teamlead prompt, handoff, review, and acceptance protocol;
-- active-development record tied to the exact historical baseline.
-
-Exit gate:
-
-- documentation is internally consistent;
-- links and diff hygiene pass;
-- no executable claim is added;
-- accepted owner decisions and remaining proposals are distinguished explicitly.
+Delivered the current documentation foundation, architecture/nomenclature
+contract, slice roadmap, testing/evidence procedure, Teamlead workflow, and exact
+historical baseline record.
 
 ## R1 — Reproduce and classify the historical baseline
 
 **Status:** COMPLETE — OWNER ACCEPTED
 
-**Goal:** establish what builds, what fails, and which dependencies or APIs are
-historical residue.
-
-Completed progression:
-
-- R1-A reconnaissance: owner-accepted and merged in PR #3;
-- R1-B dependency/MSRV reproducibility: owner-accepted and merged in PR #4;
-- R1-C source correctness: owner-accepted and merged in PR #5;
-- R1-D runtime safety, qualification CI, and R1 closeout: owner-accepted and
-  merged in PR #6.
-
-R1 work established the Rust 1.85.0 MSRV, committed `Cargo.lock` policy,
-compile/test/rustdoc/Clippy classification, source-correctness repairs,
-runtime-safety repairs, two-lane qualification CI, and prototype compatibility
-position without broad historical cleanup.
-
-Exit gate:
-
-- the baseline result is reproducible from a clean checkout: PASS;
-- every blocking failure was classified and repaired or retained as explicit
-  non-blocking historical debt: PASS;
-- the owner accepted the compatibility and versioning position: PASS.
+R1-A through R1-D established the Rust 1.85.0 MSRV, committed lockfile policy,
+reproducible qualification, source-correctness repairs, runtime-safety repairs,
+two-lane CI, and prototype compatibility position.
 
 **R1 exit criteria: satisfied.**
 
@@ -86,95 +57,87 @@ Exit gate:
 
 **Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 
-**Goal:** provide a small useful Matrix with typed failures.
-
-Delivered:
-
-- public `MatricalError` and `std::error::Error` contract;
-- checked `Shape`, `Index`, and half-open rectangular `Region` types;
-- owned dense `Matrix<T>` backed privately by `ndarray::Array2<T>`;
-- exact row-major construction with typed length mismatch;
-- checked immutable and mutable access;
-- deterministic row-major iteration, mutable iteration, and owned conversion;
-- zero-sized, overflow, indexing, and region boundary coverage;
-- public downstream-style integration test, runnable example, and compiled
-  rustdoc example;
-- explicit validity-mask decision: missingness is not intrinsic Matrix storage;
-- removal of queue-backed Matrix storage while retaining detached
-  `MatrixContext` only as required historical scaffolding;
-- explicit unsafe/Miri evaluation for the owned core;
-- successful existing-CI qualification on Rust 1.85.0 and stable.
-
-Exit gate:
-
-- no ordinary invalid shape, index, or region causes a panic: PASS;
-- zero-sized and overflow boundaries are specified and tested: PASS;
-- the public core can be used by a downstream-style integration test and
-  runnable example: PASS;
-- Matrix no longer uses queue capacity as storage or shape: PASS;
-- Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope:
-  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri was
-  deferred for reconsideration with borrowed mutable Lens semantics.
+R2 delivered checked `Shape`, `Index`, half-open `Region`, owned dense
+`Matrix<T>`, typed construction/access failures, deterministic row-major
+iteration, zero-sized/overflow/bounds coverage, downstream integration, runnable
+example, and the explicit decision that missingness is not intrinsic Matrix
+storage.
 
 ```text
 R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
-Next phase: R3 — make Lens real
 ```
 
 ## R3 — Make Lens real
 
-**Status:** IN DEVELOPMENT — ACTIVE
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
 
-**Goal:** deliver safe, borrowing views over Matrix data.
+R3 delivered:
 
-Current R3 contract:
-
-- immutable rectangular `Lens<'a, T>` borrowing `&'a Matrix<T>`;
-- mutable rectangular `LensMut<'a, T>` borrowing `&'a mut Matrix<T>`;
+- immutable `Lens<'a, T>` borrowing `&'a Matrix<T>`;
+- mutable `LensMut<'a, T>` borrowing `&'a mut Matrix<T>`;
 - Region revalidation against the receiving Matrix;
 - Lens-local checked indexing;
-- row and column selectors returning the same rectangular Lens types;
-- deterministic logical row-major iteration over the selected rectangle;
-- zero-allocation construction/access/iteration with explicit allocating
+- row and column selectors using the same rectangular Lens types;
+- deterministic logical row-major iteration;
+- borrowing construction/access/iteration with explicit allocating
   `to_row_major()` conversion;
 - compile-fail lifetime and mutable-alias examples;
-- exhaustive small-domain Region-boundary tests;
-- explicit GAT evaluation with concrete lifetime-generic views selected for R3
-  because Matrix is the only current view provider and inherent methods encode
-  the ownership contract more directly.
+- boundary-focused Lens tests;
+- no project-authored unsafe;
+- Rust 1.85.0 and stable locked qualification.
 
-Exit gate:
+R3 compared concrete lifetime-generic views with a public GAT lending provider
+and deferred the provider trait. R4 reassesses that decision using real Gear
+composition and capability authority.
 
-- Lenses cannot outlive their Matrix;
-- mutable aliasing is rejected by the type system;
-- selection boundaries are property-tested;
-- view operations do not allocate unless documented;
-- Rust 1.85.0 and stable qualification pass with the committed lockfile.
-
-R4 remains blocked until R3 is reviewable and receives Teamlead/owner acceptance.
+```text
+R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
+Next phase: R4 — establish transformation composition
+```
 
 ## R4 — Reintroduce Gear, Cog, and Tag
 
-**Goal:** turn the nomenclature into a coherent transformation API.
+**Status:** IN DEVELOPMENT — ACTIVE
 
-Planned work:
+**Goal:** turn the nomenclature into a coherent transformation API while keeping
+the selected Lens as the least-authority boundary.
 
-- a minimal Gear trait or operation protocol;
-- distinct read-only and mutating transformation contracts unless working Lens
-  evidence justifies another effect-safe design;
-- first-class downstream-defined Gears without a required runtime registry;
-- several concrete transformations with deterministic behavior;
-- typed Cog requirements and validation;
-- bounded Tag/provenance representation;
-- execution reports that identify selection, operation, and outcome;
-- examples demonstrating composition without runtime-pattern ceremony.
+Current R4 contract:
+
+- separate `ReadGear<T>` and `MutGear<T>` static traits;
+- read Gear receives only immutable `Lens` authority;
+- mutating Gear receives only `LensMut` authority;
+- no normal Gear access to Matrix storage, ndarray views, or region-selection
+  authority;
+- direct downstream trait implementation without registry/factory/DI ceremony;
+- deterministic `SumGear`, `AddScalarGear`, `ScaleGear`, and `ClampGear` examples;
+- typed `Cog<C>` context with `InvalidContext` for absence;
+- small `ValidateCog` policy-validation contract;
+- bounded inert Tag provenance with no query/command semantics;
+- generic `ExecutionReport<O>` recording Gear identity, Region, typed effect,
+  typed output, and ordered Tags;
+- central `execute_read` / `execute_mut` boundaries that resolve and validate Cog
+  before running Gear;
+- explicit full/partial/empty selection behavior;
+- external downstream-defined Gear integration and runnable composition example;
+- compile-fail evidence that read Gear cannot mutate through its Lens;
+- project-authored R4 unsafe target of zero.
 
 Exit gate:
 
 - every concept has a distinct responsibility;
-- a Gear cannot bypass Lens bounds;
-- required context cannot be absent at runtime without a typed error;
-- examples demonstrate both static and, only if justified, dynamic dispatch.
+- read-only and mutating authority are type-level distinct;
+- a Gear cannot bypass the supplied Lens Region through the public contract;
+- downstream-defined Gear works without registry or `Any`;
+- required Cog absence is `InvalidContext` and invalid policy is typed failure;
+- Tag is bounded, deterministic, and non-executable;
+- ExecutionReport preserves identity, Region, effect, typed output, and Tags;
+- only selected Region mutates;
+- empty selection behavior is explicit and panic-free;
+- GAT/HRTB and dynamic dispatch decisions are evidence-backed;
+- Rust 1.85.0 and stable exact-head CI are green with unchanged lockfile.
+
+R5 remains blocked until R4 is reviewable and receives Teamlead/owner acceptance.
 
 ## R5 — API ergonomics and learning surface
 
@@ -200,23 +163,10 @@ Exit gate:
 
 **Goal:** establish performance evidence before adding complexity.
 
-Planned work:
-
-- Criterion benchmarks for representative shapes and operations;
-- tall, moderately narrow consumer shapes including `32 x 24`, `1,024 x 64`,
-  and `100,000 x 64` where host resources permit;
-- allocation and copy accounting for Lens and Gear paths;
-- comparison against direct underlying-storage operations;
-- a stated overhead budget relative to direct `ndarray` operations;
-- profiling before layout or dispatch changes;
-- optional Rayon-backed execution only where thresholds show benefit.
-
-Exit gate:
-
-- benchmarks are stable enough to detect regressions;
-- every optimization documents its tradeoff and baseline;
-- parallel results preserve the accepted sequential semantics;
-- performance claims name the workload and environment.
+Planned work includes representative benchmarks, allocation/copy accounting,
+comparison with direct underlying-storage operations, profiling, and optional
+parallel execution only where evidence demonstrates a benefit while preserving
+accepted sequential semantics.
 
 ## R7 — Optional backends and integrations
 
@@ -226,62 +176,50 @@ Candidate work:
 
 - serialization and durable representation;
 - sparse or mapped storage;
-- backend/lending-view traits, with GATs considered only when real
-  implementations justify the borrowing abstraction;
+- backend/lending-view traits only when real implementations justify them;
 - optional persistence research;
 - SurrealDB integration only with a concrete use case and isolated feature graph.
 
-Exit gate:
-
-- at least two real implementations justify the abstraction;
-- default users do not pay for unused integrations;
-- feature combinations and compatibility are tested;
-- persistence does not become a hidden mutation or authority channel.
+Exit gate requires at least two real implementations to justify a shared backend
+abstraction and no hidden mutation or authority channel.
 
 ## R8 — Release qualification
 
 **Goal:** prepare the first rehabilitated release candidate.
 
-Planned work:
+Planned work includes version/compatibility decision, changelog and migration
+notes, package metadata/license audit, MSRV/stable/downstream qualification,
+documentation/example audit, benchmark baseline, known limitations, and explicit
+owner-controlled crates.io publication.
 
-- version and compatibility decision;
-- changelog, migration notes, package metadata, and license audit;
-- MSRV/current-stable/downstream qualification;
-- documentation and example audit;
-- benchmark baseline and known-limitations statement;
-- owner-controlled crates.io publication decision.
-
-The likely release line is `0.2.0`, but version bumping, tagging, and publication
-remain explicit owner decisions.
+The likely release line remains `0.2.0`; version bumping, tagging, and publication
+remain owner decisions.
 
 ## Advanced Rust policy
 
-GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
-goals. Use them only when they encode a real ownership, borrowing, lending, or
-extensibility contract more clearly and safely than a simpler API.
+GATs and HRTBs are tools, not rehabilitation goals. Use them only when they
+encode a real ownership, borrowing, lending, or extensibility contract more
+clearly and safely than a simpler API.
 
-R3 compared two concrete shapes:
+R3's concrete Lens design was selected partly because Matrix was the only proven
+provider. R4 supplies a stronger authority-based reassessment. A Gear should
+consume an already caller-selected `Lens`/`LensMut`; giving a Gear a generic
+lending provider could also give it the ability to choose a larger Region. That
+is broader authority than the current transformation requires.
 
-```rust
-pub struct Lens<'a, T> { /* private borrow */ }
-pub struct LensMut<'a, T> { /* private exclusive borrow */ }
+A public GAT `LendingView` provider would preserve static dispatch and might help
+future providers, but R4 demonstrates no current provider plurality or ergonomic
+benefit that outweighs the larger API and Rust 1.85 diagnostics. More
+importantly, reproducing the current least-authority boundary on top of a generic
+provider would add indirection just to prevent the Gear from exercising provider
+selection authority. R4 therefore defers a public GAT provider again for a new,
+architecture-specific reason: the transformation layer actively prefers the
+narrower Lens capability.
 
-impl<T> Matrix<T> {
-    pub fn lens(&self, region: Region) -> Result<Lens<'_, T>, MatricalError>;
-    pub fn lens_mut(&mut self, region: Region) -> Result<LensMut<'_, T>, MatricalError>;
-}
-```
-
-and a GAT-backed lending trait with associated `View<'a>` / `ViewMut<'a>` types.
-The GAT form preserves static dispatch and could abstract over future view
-providers, but R3 has only one proven provider (`Matrix<T>`). It adds a public
-trait, associated-type constraints, and more complex diagnostics without making
-Matrix-to-Lens borrowing safer or making current callers simpler. R3 therefore
-uses concrete lifetime-generic views and defers a GAT lending abstraction until
-multiple real providers or R4 composition demonstrates a concrete need.
-
-Later backend abstractions may revisit GATs or HRTBs only when concrete
-implementations justify the additional type-system complexity.
+R4 also finds no genuine callback/adapter requiring `for<'a> Fn(&Lens<'a, T>)`,
+so no HRTB surface is added merely for sophistication. Static Gear dispatch is
+sufficient for the demonstrated downstream extension; heterogeneous runtime
+Gear registries remain deferred until a real consumer requires them.
 
 ## Cross-cutting requirements
 
