@@ -12,8 +12,9 @@
 
 **Accepted R1-D merge:** `059f148a99cfe2b5b881ada9af9acc286f584b6a`
 
-**Current phase:** R2 complete pending Teamlead/owner acceptance; R3 blocked only
-on R2 Teamlead/owner acceptance
+**Accepted R2 merge:** `2f76a87e171a32a58a6d7244fdeb1b8794fc043a`
+
+**Current phase:** R3 active
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -83,7 +84,7 @@ Exit gate:
 
 ## R2 — Rebuild the core invariants
 
-**Status:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 
 **Goal:** provide a small useful Matrix with typed failures.
 
@@ -112,37 +113,45 @@ Exit gate:
   runnable example: PASS;
 - Matrix no longer uses queue capacity as storage or shape: PASS;
 - Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope:
-  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri is
-  low-value here and must be reconsidered with borrowed mutable Lens semantics.
+  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri was
+  deferred for reconsideration with borrowed mutable Lens semantics.
 
 ```text
-R2: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
-Next phase after merge: R3 — make Lens real
+R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
+Next phase: R3 — make Lens real
 ```
 
 ## R3 — Make Lens real
 
-**Status:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
+**Status:** IN DEVELOPMENT — ACTIVE
 
 **Goal:** deliver safe, borrowing views over Matrix data.
 
-Planned work:
+Current R3 contract:
 
-- immutable rectangular Lens;
-- mutable rectangular Lens with exclusive borrowing;
-- row and column selectors;
-- explicitly compare a GAT-backed lending-view design with a simpler
-  lifetime-generic design and adopt GATs only if they provide a concrete
-  correctness/usability benefit;
-- iteration and conversion rules;
-- compile-time lifetime examples and negative API tests where useful.
+- immutable rectangular `Lens<'a, T>` borrowing `&'a Matrix<T>`;
+- mutable rectangular `LensMut<'a, T>` borrowing `&'a mut Matrix<T>`;
+- Region revalidation against the receiving Matrix;
+- Lens-local checked indexing;
+- row and column selectors returning the same rectangular Lens types;
+- deterministic logical row-major iteration over the selected rectangle;
+- zero-allocation construction/access/iteration with explicit allocating
+  `to_row_major()` conversion;
+- compile-fail lifetime and mutable-alias examples;
+- exhaustive small-domain Region-boundary tests;
+- explicit GAT evaluation with concrete lifetime-generic views selected for R3
+  because Matrix is the only current view provider and inherent methods encode
+  the ownership contract more directly.
 
 Exit gate:
 
 - Lenses cannot outlive their Matrix;
 - mutable aliasing is rejected by the type system;
 - selection boundaries are property-tested;
-- view operations do not allocate unless documented.
+- view operations do not allocate unless documented;
+- Rust 1.85.0 and stable qualification pass with the committed lockfile.
+
+R4 remains blocked until R3 is reviewable and receives Teamlead/owner acceptance.
 
 ## R4 — Reintroduce Gear, Cog, and Tag
 
@@ -251,20 +260,25 @@ GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
 goals. Use them only when they encode a real ownership, borrowing, lending, or
 extensibility contract more clearly and safely than a simpler API.
 
-R2 deliberately does not force GATs into the owned Matrix core. R3 explicitly
-retains the GAT evaluation for Lens and lending views. A conceptual shape for
-that comparison is:
+R3 compared two concrete shapes:
 
-    trait LendingView {
-        type View<'a>
-        where
-            Self: 'a;
+```rust
+pub struct Lens<'a, T> { /* private borrow */ }
+pub struct LensMut<'a, T> { /* private exclusive borrow */ }
 
-        fn view<'a>(&'a self) -> Self::View<'a>;
-    }
+impl<T> Matrix<T> {
+    pub fn lens(&self, region: Region) -> Result<Lens<'_, T>, MatricalError>;
+    pub fn lens_mut(&mut self, region: Region) -> Result<LensMut<'_, T>, MatricalError>;
+}
+```
 
-This remains a design probe, not an R2 implementation contract. R3 must compare
-it against a simpler lifetime-generic design and choose based on evidence.
+and a GAT-backed lending trait with associated `View<'a>` / `ViewMut<'a>` types.
+The GAT form preserves static dispatch and could abstract over future view
+providers, but R3 has only one proven provider (`Matrix<T>`). It adds a public
+trait, associated-type constraints, and more complex diagnostics without making
+Matrix-to-Lens borrowing safer or making current callers simpler. R3 therefore
+uses concrete lifetime-generic views and defers a GAT lending abstraction until
+multiple real providers or R4 composition demonstrates a concrete need.
 
 Later backend abstractions may revisit GATs or HRTBs only when concrete
 implementations justify the additional type-system complexity.

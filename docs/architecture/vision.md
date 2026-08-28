@@ -1,6 +1,6 @@
 # Matrical architecture vision
 
-**Status:** accepted rehabilitation direction; R2 core contract active
+**Status:** accepted rehabilitation direction; R2 core accepted; R3 borrowing-view contract active
 
 ## Product position
 
@@ -44,17 +44,41 @@ checks `row < rows` and `column < columns` before returning a reference.
 ```
 
 End boundaries may equal the Shape dimension. Reversed or out-of-bounds ranges
-are typed failures. Empty regions are valid. R3 Lens will consume this contract.
+are typed failures. Empty regions are valid. A Region presented to a Matrix for
+Lens construction is revalidated against that receiving Matrix, even if the
+Region was valid for another Shape.
 
 ### Lens
 
-A Lens selects or views part of a Matrix without taking ownership of selected
-values. Initial Lenses should cover a validated rectangular `Region`; row,
-column, diagonal, band, triangular, and sparse selections can follow only when
-semantics are justified.
+`Lens<'a, T>` is an immutable rectangular borrowing view over `Matrix<T>`;
+`LensMut<'a, T>` is the mutable counterpart. R3 represents them by borrowing the
+checked parent Matrix directly rather than exposing ndarray views publicly:
 
-Immutable and mutable Lenses must make aliasing and borrowing explicit. A Lens
-must never outlive its Matrix.
+```text
+Matrix<T> owns data
+Lens<'a, T> borrows &'a Matrix<T>
+LensMut<'a, T> borrows &'a mut Matrix<T>
+```
+
+The borrow checker prevents either view from outliving its parent borrow and
+prevents a second mutable Lens through the same Matrix while the first remains
+live. R3 deliberately accepts this conservative whole-Matrix mutable borrow even
+for logically disjoint Regions; it does not add unsafe splitting or runtime
+overlap tracking.
+
+A Lens stores the selected Region in parent coordinates but exposes element
+access in Lens-local coordinates. If a Region selects rows `2..4` and columns
+`3..6`, Lens-local `Index::new(0, 0)` refers to parent coordinate `(2, 3)`.
+Local out-of-bounds access returns `MatricalError::IndexOutOfBounds`.
+
+Rows and columns are ordinary rectangular Lenses. An in-range row of an `N x 0`
+Matrix is a valid empty `1 x 0` Lens; an in-range column of a `0 x N` Matrix is a
+valid empty `0 x 1` Lens. `0 x 0` has neither a valid row nor a valid column.
+
+Lens construction, row/column selection, checked access, and iteration do not
+intentionally allocate. Iteration follows logical row-major order within the
+selected rectangle and makes no physical-contiguity promise. `to_row_major()` is
+the explicit allocating conversion and requires `T: Clone`.
 
 ### Gear
 
@@ -100,9 +124,9 @@ boundaries, not an immediate workspace-split requirement.
 - Region ordering is half-open and empty-region behavior is explicit.
 - Public construction/access failures are typed and do not panic for ordinary
   invalid input.
-- Matrix iteration and owned conversion preserve deterministic logical row-major
-  order.
-- A mutable Lens has exclusive access to its selected storage for its lifetime.
+- Matrix and Lens logical iteration preserve deterministic row-major order.
+- A Lens cannot outlive the Matrix borrow it contains.
+- A mutable Lens has exclusive access to its parent Matrix for its lifetime.
 - A Gear cannot access values outside its Lens.
 - Metadata cannot mutate matrix data by an undocumented side channel.
 - Parallel execution, if introduced, preserves accepted sequential semantics
@@ -112,6 +136,12 @@ boundaries, not an immediate workspace-split requirement.
 
 The accepted first dense storage is `ndarray::Array2<T>`, kept as a private
 implementation detail behind Matrical-owned invariants.
+
+R3 does not broaden backend visibility. Its current Lens representation borrows
+the checked `Matrix<T>` wrapper and uses Matrix's checked access and logical
+iterators. This keeps the backend private while preserving zero-copy borrowing.
+A later performance phase may compare an internal ndarray-view representation if
+measurement demonstrates a need, without changing the public Lens contract.
 
 A validity/missingness mask is **not intrinsic Matrix storage**. `Matrix<T>`
 represents values and shape. Missingness belongs in an explicit paired
@@ -124,24 +154,29 @@ prototype's largest problem: abstractions arriving before working behavior.
 
 ## Advanced Rust and borrowing
 
-GATs and HRTBs are tools, not design goals. R2 has no demonstrated need for them
-in owned dense storage and therefore does not force them into Matrix.
+GATs and HRTBs are tools, not design goals. R3 evaluated both concrete
+lifetime-generic borrowing views and a GAT-backed lending abstraction.
 
-R3 must compare a GAT-backed lending-view API with a simpler lifetime-generic
-Lens design. A conceptual probe is:
+The concrete design keeps ownership visible at the call site:
 
 ```rust
-trait LendingView {
-    type View<'a>
-    where
-        Self: 'a;
-
-    fn view<'a>(&'a self) -> Self::View<'a>;
+impl<T> Matrix<T> {
+    pub fn lens(&self, region: Region) -> Result<Lens<'_, T>, MatricalError>;
+    pub fn lens_mut(&mut self, region: Region) -> Result<LensMut<'_, T>, MatricalError>;
 }
 ```
 
-The design should be adopted only if it materially improves correctness or
-usability and is supported by compile-time examples/tests.
+A GAT-backed `LendingView` trait could associate `View<'a>` and `ViewMut<'a>`
+with future providers while retaining static dispatch. Today Matrix is the only
+proven provider. The trait would not strengthen the borrow checker guarantees,
+would not simplify current callers, and would make Rust 1.85 diagnostics and API
+surface more complex. R3 therefore keeps the concrete design and defers a public
+GAT abstraction until multiple implementations or R4 Gear composition provides
+a real need.
+
+Compile-fail rustdoc examples cover Lens escape and simultaneous mutable Lens
+misuse, so the decision is grounded in the actual ownership surface rather than
+syntax preference.
 
 ## Concurrency and performance
 
@@ -152,8 +187,8 @@ Parallelism remains optional and evidence-driven. Before concurrent mutation is
 introduced, Matrical must specify aliasing, partial-observation, cancellation,
 failure, determinism, and synchronization ownership.
 
-Zero-copy claims must identify exactly what is borrowed, what may allocate, and
-how long the view remains valid.
+Zero-copy claims identify only borrowing operations. `to_row_major()` explicitly
+allocates and clones selected values; it is not described as zero-copy.
 
 ## Error contract
 
@@ -161,14 +196,14 @@ how long the view remains valid.
 `std::error::Error`. R2 distinguishes shape element-count overflow, exact
 row-major length mismatch, index bounds, reversed regions, and out-of-bounds
 regions while retaining historical variants still used by compiled prototype
-modules.
+modules. R3 reuses `RegionReversed`, `RegionOutOfBounds`, and `IndexOutOfBounds`
+rather than adding Lens-specific error variants.
 
 ## Dependency policy
 
-Every normal dependency must serve implemented behavior. R2 uses the already
-accepted ndarray dependency and does not change dependency metadata or the
-committed lockfile. Crossbeam may remain for historical non-Matrix code but is
-not Matrix storage after R2.
+Every normal dependency must serve implemented behavior. R3 changes no dependency
+metadata or lockfile. ndarray remains the private dense-storage backend and
+Crossbeam remains historical non-Matrix residue outside this slice.
 
 Optional database, serialization, parallelism, and benchmarking capabilities
 must earn explicit features and tests later.
@@ -176,10 +211,10 @@ must earn explicit features and tests later.
 ## Non-goals for the rehabilitation core
 
 - Reimplementing a complete linear-algebra ecosystem.
-- Database-backed matrices in the first functional slice.
+- Database-backed matrices in the first functional slices.
 - A hidden validity/missingness mask in `Matrix<T>`.
-- Lock-free or parallel Matrix mutation as a default requirement.
-- Lens implementation during R2.
+- Lock-free or parallel Matrix/Lens mutation as a default requirement.
+- Unsafe disjoint mutable Lens splitting during R3.
 - Preserving unfinished 0.1.0 behavior as a compatibility contract.
 - Using advanced Rust syntax without a measurable correctness, usability, or
   performance benefit.
