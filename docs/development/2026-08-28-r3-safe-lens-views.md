@@ -10,33 +10,32 @@ tree       947684bc73841fb0842d5664e168e28bc8d3b05b
 version    0.1.0
 ```
 
-The merge parents are:
+Merge parents:
 
 ```text
 059f148a99cfe2b5b881ada9af9acc286f584b6a
 cd0154c728fa3d18904b1753a4e33354b9ff54f6
 ```
 
-The second parent is the final corrected R2 candidate. The accepted lockfile
-SHA-256 is:
-
-```text
-8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020
-```
-
-R3 branch:
+The second parent is the final corrected R2 candidate. R3 uses branch:
 
 ```text
 rehab/r3-safe-lens-views
 ```
 
+The accepted and preserved Cargo.lock SHA-256 is:
+
+```text
+8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020
+```
+
 ## Historical Lens prototype disposition
 
 The historical `src/strategies/lens.rs` validation/strategy prototype was not a
-compatibility contract. R3 removes the old `Lens<V>` execution trait,
-`MatrixLens<T>` wrapper, validation-builder ceremony, validation strategies, and
-associated placeholder behavior. Repository search found no compiled external
-references requiring a mechanical compatibility shim.
+compatibility contract. R3 retires the old `Lens<V>` execution trait,
+`MatrixLens<T>` wrapper, `MatrixLensTrait`, matrix-validation builders and
+strategies, and their placeholder validation ceremony. Repository search found
+no compiled external references requiring a compatibility shim.
 
 The canonical public meanings are now borrowing views:
 
@@ -54,29 +53,25 @@ Lens<'a, T>    -> &'a Matrix<T> + Region + local Shape
 LensMut<'a, T> -> &'a mut Matrix<T> + Region + local Shape
 ```
 
-This representation was chosen instead of directly storing
-`ndarray::ArrayView2` / `ArrayViewMut2` because it satisfies the public borrowing
-contract without changing Matrix backend visibility at all. No ndarray view is
-made public or `pub(crate)`, and no new Matrix backend helper is required.
+The underlying `ndarray::Array2<T>` remains private. R3 does not expose ndarray
+views publicly or through new `pub(crate)` helpers. This representation proves
+the required ownership contract without broadening backend access.
 
-The public contract does not promise physical contiguity. A later measured
-optimization may change the private representation without changing Lens API
-semantics.
+No physical-contiguity promise is made. A later measured optimization may change
+the private representation without changing public Lens semantics.
 
-## Region relationship and local indexing
+## Region relationship and Lens-local indexing
 
-`Matrix::lens` and `Matrix::lens_mut` call the existing Matrix Region
-revalidation path. A Region valid for another Shape can therefore still fail
-with `MatricalError::RegionOutOfBounds` when presented to a smaller receiving
-Matrix.
+`Matrix::lens` and `Matrix::lens_mut` reuse the existing Matrix Region
+revalidation path. A Region that was valid for another Shape is therefore not
+trusted when supplied to a receiving Matrix and may return
+`MatricalError::RegionOutOfBounds`.
 
-A Lens retains the validated Region in parent coordinates but its public
-`get(Index)` / `get_mut(Index)` coordinates are local to the selected rectangle.
-For a parent Region `rows 2..4, columns 3..6`, local `(0, 0)` maps to parent
-`(2, 3)`. Local bounds are checked before translation, and invalid local access
-returns `MatricalError::IndexOutOfBounds`.
-
-## Geometry and empty views
+A Lens retains its validated Region in parent coordinates, but public element
+access is Lens-local. For parent Region `rows 2..4, columns 3..6`, local
+`Index::new(0, 0)` addresses parent coordinate `(2, 3)`. Local bounds are
+checked before coordinate translation; invalid local access returns
+`MatricalError::IndexOutOfBounds`.
 
 Both Lens types expose:
 
@@ -91,7 +86,24 @@ is_empty()
 
 The Lens Shape is exactly `region.rows() x region.columns()`.
 
-Empty Regions are valid. Row/column semantics are:
+## Matrix entry points and selectors
+
+R3 exposes:
+
+```text
+Matrix::lens
+Matrix::lens_mut
+Matrix::row
+Matrix::row_mut
+Matrix::column
+Matrix::column_mut
+```
+
+Rows are rectangular `1 x columns` Lenses. Columns are rectangular `rows x 1`
+Lenses. Out-of-range row or column indices return
+`MatricalError::IndexOutOfBounds`.
+
+Empty-shape behavior is explicit:
 
 ```text
 Shape(0, N): no valid row; in-range columns yield 0 x 1 empty Lens
@@ -99,22 +111,23 @@ Shape(N, 0): in-range rows yield 1 x 0 empty Lens; no valid column
 Shape(0, 0): neither row nor column index is valid
 ```
 
-Out-of-range row/column selectors return `MatricalError::IndexOutOfBounds`.
+Empty Regions remain valid Lens and LensMut selections.
 
-## Iteration and allocation contract
+## Access, iteration, and allocation contract
 
-Lens iteration is built from Matrix's deterministic row-major iterator plus a
-non-allocating coordinate filter over the validated parent Region. The resulting
-logical order is:
+Immutable Lens provides checked `get` and `iter`. Mutable Lens provides checked
+`get`, `get_mut`, `iter`, and `iter_mut`.
+
+Iteration is built from Matrix's deterministic logical row-major iterator plus a
+non-allocating coordinate filter over the selected Region. The public order is:
 
 ```text
-top selected row, left to right
+top selected row left-to-right
 then the next selected row
 ...
 ```
 
-The implementation intentionally promises logical ordering only, not parent
-storage contiguity or pointer layout.
+The contract is logical ordering, not pointer layout or parent contiguity.
 
 Must not intentionally allocate:
 
@@ -134,16 +147,19 @@ Lens::to_row_major()
 LensMut::to_row_major()
 ```
 
-Those conversion methods require `T: Clone`, collect selected values into a new
-`Vec<T>`, and preserve the same logical row-major order.
+The owned conversions require `T: Clone`, collect into a new `Vec<T>`, and use
+the same logical row-major ordering as iteration.
 
 ## Mutable aliasing contract
 
-`LensMut<'a, T>` contains `&'a mut Matrix<T>`. Safe Rust therefore ties the view
-to the mutable Matrix borrow and rejects another `matrix.lens_mut(...)` while a
-live first LensMut will be used. R3 intentionally does not attempt disjoint
-mutable splitting. No runtime overlap table, raw pointer, or unsafe aliasing
-machinery exists.
+`LensMut<'a, T>` contains `&'a mut Matrix<T>`. Safe Rust therefore ties the
+view to the mutable Matrix borrow and rejects another `matrix.lens_mut(...)`
+while the first LensMut remains live and is subsequently used, even if Regions
+would be disjoint.
+
+R3 deliberately uses this conservative whole-Matrix mutable borrow. It does not
+add runtime overlap tracking, raw pointers, unsafe disjoint splitting, or any
+other aliasing escape hatch.
 
 ## GAT evaluation
 
@@ -159,14 +175,13 @@ impl<T> Matrix<T> {
 }
 ```
 
-Caller ergonomics are direct; the borrow lifetime is visible in the returned
-concrete type; inherent methods produce short diagnostics; static dispatch is
-ordinary monomorphization; and Rust 1.85 needs no advanced associated-type
-constraints for this path.
+Design A gives direct caller ergonomics, keeps the borrow lifetime visible in
+the concrete returned type, uses ordinary static dispatch, and produces simpler
+ownership diagnostics. It is fully compatible with Rust 1.85.
 
 ### Design B — GAT-backed lending abstraction
 
-The evaluated shape is equivalent to:
+The evaluated alternative is equivalent to:
 
 ```rust
 trait LendingView<T> {
@@ -180,50 +195,43 @@ trait LendingView<T> {
         Self: 'a,
         T: 'a;
 
-    fn view<'a>(&'a self, region: Region) -> Result<Self::View<'a>, MatricalError>;
-    fn view_mut<'a>(&'a mut self, region: Region) -> Result<Self::ViewMut<'a>, MatricalError>;
+    fn view<'a>(&'a self, region: Region)
+        -> Result<Self::View<'a>, MatricalError>;
+
+    fn view_mut<'a>(&'a mut self, region: Region)
+        -> Result<Self::ViewMut<'a>, MatricalError>;
 }
 ```
 
-This can abstract statically over multiple future view providers. It does not,
-however, strengthen lifetime or alias safety relative to Design A. Matrix is the
-only proven provider in R3, so the trait introduces public abstraction,
-associated-type where-clauses, and more complex caller/compiler diagnostics
-without simplifying present use.
+Design B preserves static dispatch and could abstract over multiple future view
+providers. It does not make current Matrix-to-Lens borrowing safer, does not
+simplify current callers, and adds a public trait plus associated-type lifetime
+constraints and more complex diagnostics.
 
-### Decision
+### Final GAT decision
 
-R3 selects Design A and defers a public GAT lending trait. The GAT design should
-be reconsidered only if R4 Gear composition needs to abstract over multiple
-borrow providers or later backend work establishes at least two real providers.
-This is an evidence-based deferral, not a conclusion that GATs are unsuitable for
-Matrical.
+R3 selects Design A and defers a public GAT lending trait. Matrix is the only
+proven view provider today, and the inherent methods already express the
+ownership contract clearly. GATs should be reconsidered if R4 Gear composition
+needs to abstract over multiple lending providers or later backend work produces
+at least two genuine implementations.
 
-## Rust 1.85 implications
+This is an evidence-backed deferral, not a rejection of GATs as a Matrical tool.
 
-The concrete design uses ordinary lifetime parameters, inherent impls, iterator
-combinators, and stable language/library features available well before Rust
-1.85. It avoids adding a public GAT surface solely for feature use. The MSRV and
-edition remain unchanged:
-
-```text
-rust-version 1.85
-edition      2021
-```
-
-## Compile-time borrowing evidence
+## Compile-time lifetime and alias evidence
 
 Rustdoc `compile_fail` examples prove both required misuse cases:
 
-1. a `Lens<'a, T>` cannot be returned from a scope containing its local Matrix;
-2. a second mutable Lens cannot be created while the first mutable Lens remains
-   live and is subsequently used.
+1. `Lens<'a, T>` cannot escape the scope containing its Matrix;
+2. a second mutable Lens cannot be created from the same Matrix while the first
+   remains live and is later used.
 
-These tests require no additional compile-test dependency.
+The corrected GitHub Qualification run executed these compile-fail doctests on
+both Rust 1.85.0 and stable and they passed.
 
 ## Boundary/property-style coverage
 
-The R3 unit test exhaustively loops over these small Shapes:
+The R3 unit suite exhaustively exercises these small Shapes:
 
 ```text
 0 x 0
@@ -237,43 +245,52 @@ The R3 unit test exhaustively loops over these small Shapes:
 ```
 
 For each dimension it combines boundary points `0`, `dimension`, and
-`dimension + 1` as ordered and reversed Region starts/ends. Every accepted Region
-is turned into a Lens and checked for expected Shape, iteration count, and exact
-parent-coordinate values. Rejected Regions must be typed `RegionReversed` or
-`RegionOutOfBounds`. Empty accepted Regions are included naturally.
+`dimension + 1` as Region start/end values, including ordered and reversed
+combinations. Every accepted Region is converted to a Lens and checked for:
 
-A separate regression proves that a Region valid against a larger foreign Shape
-is revalidated and rejected by a smaller receiving Matrix.
+- exact selected Shape;
+- iteration count equal to Region length;
+- exact correspondence to parent Matrix coordinates;
+- safe empty selections.
 
-## Functional and downstream coverage
+Rejected Regions must be typed `RegionReversed` or `RegionOutOfBounds`. A
+separate regression proves that a Region valid for a larger foreign Shape is
+revalidated and rejected by a smaller receiving Matrix.
 
-Unit tests cover:
+## Unit, integration, example, and rustdoc coverage
 
-- rectangular immutable selection and local first/last access;
-- full-Matrix, one-element, and empty Lenses;
-- local out-of-bounds errors;
-- immutable deterministic iteration and owned row-major copy;
-- mutable single-element and whole-Region mutation;
-- selected-only parent updates and invalid mutable local access;
-- empty mutable Lens safety;
-- first/last/out-of-bounds rows and row mutation;
-- first/last/out-of-bounds columns and column mutation;
-- `N x 0`, `0 x N`, and `0 x 0` selector behavior;
-- exhaustive small-domain Region boundaries.
+R3 adds 10 focused Lens unit tests covering immutable and mutable rectangular
+views, local first/last access, local out-of-bounds behavior, full/one/empty
+views, selected-only mutation, rows, columns, zero-sized selector semantics, and
+exhaustive boundary loops.
 
-`tests/r3_lens_api.rs` consumes Matrical only through intended public exports and
-covers construction, Region, immutable Lens, local checked access, rows,
-columns, mutable Lens mutation, empty selector semantics, and typed invalid
-selection.
+`tests/r3_lens_api.rs` adds 3 downstream-style integration tests using only the
+intended public Matrical API. They cover Matrix construction, Region, immutable
+Lens, local checked access, rows, columns, mutable Lens mutation reflected in the
+parent, empty selectors, and typed invalid selection.
 
 `examples/r3_lens.rs` is a Result-propagating runnable example demonstrating
-immutable inspection, mutable selected-region changes reflected in the parent,
-and row/column selection.
+immutable inspection, mutable selected-region updates, parent reflection, and
+row/column selection. It compiles under the all-targets qualification gate.
 
-Lens rustdoc contains one positive compiled example and the two compile-fail
-borrowing examples.
+Lens rustdoc adds one positive compiled example and two compile-fail borrowing
+examples. The whole crate qualification reports 4 passing doctests: the existing
+R2 Matrix example plus the 3 R3 Lens examples.
 
-## Unsafe audit and Miri evaluation
+Observed corrected-run totals:
+
+```text
+61 unit tests
+ 1 R2 integration test
+ 3 R3 integration tests
+----------------------
+65 runtime tests passed
+ 4 doctests passed (including 2 R3 compile-fail tests)
+----------------------
+69 qualification tests passed
+```
+
+## Unsafe audit and Miri/deeper-check evaluation
 
 Project-authored unsafe introduced by R3:
 
@@ -281,30 +298,121 @@ Project-authored unsafe introduced by R3:
 0
 ```
 
-Borrow/aliasing enforcement is entirely safe Rust: shared `&Matrix<T>` for Lens,
-exclusive `&mut Matrix<T>` for LensMut, checked Matrix element access, and safe
-iterator composition.
+Borrowing and alias enforcement use only safe Rust: `&Matrix<T>`,
+`&mut Matrix<T>`, Matrix's checked access, and safe iterator composition.
 
-The developer runtime used for this session does not provide Rust/rustup, so Miri
-is not available there. Installing a nightly solely for this safe wrapper would
-not add evidence proportional to the environment detour. R3 instead relies on
-the borrow checker, compile-fail rustdoc, exhaustive runtime boundary tests, and
-the existing Rust 1.85/stable GitHub Qualification lanes. Miri remains worth
-reconsidering if later work introduces project-authored unsafe code or custom
-disjoint mutable splitting.
+The developer runtime for this session does not provide Rust, rustup, rustfmt,
+or Miri. Installing a nightly solely for a safe wrapper would be an environment
+detour without proportional additional evidence. Miri was therefore evaluated
+but not made a blocking requirement. The R3 evidence instead uses:
 
-## Qualification status
+```text
+safe Rust
+borrow checker
+compile-fail rustdoc
+exhaustive boundary tests
+Rust 1.85 qualification
+stable qualification
+```
 
-The development runtime cannot execute Cargo because Rust tooling is absent.
-This is an environment limitation rather than an owner-operated gate; the owner
-is not asked to install or run anything. The existing GitHub Qualification
-workflow is the authoritative executable environment for both Rust 1.85.0 and
-stable and will run after PR publication.
+Miri should be reconsidered if later work introduces project-authored unsafe
+code or custom disjoint mutable splitting.
 
-Mechanical review before publication includes changed-path scope inspection,
-lockfile path identity, unsafe-token inspection of new R3 source, and review of
-the final compare against the accepted baseline. CI outcomes and final head/tree
-identity are recorded in the closing evidence update after Qualification runs.
+## Qualification evidence
+
+The local development runtime could not execute Cargo or rustfmt. No owner gate
+was introduced for that environment limitation; the repository's existing
+GitHub Qualification workflow supplied executable Rust 1.85.0 and stable
+coverage.
+
+The first PR run, GitHub Actions run `33211684131`, found the same narrow R3
+compile error in both lanes: `selected_iter` carried an unused generic parameter
+that Rust could not infer (`E0282`). No architectural change was required. Commit
+`a17527ad6083a21a3b865502231c7b48dffbe2a7` removed that stray type parameter.
+
+The corrected GitHub Actions run `33211889042` passed both lanes completely.
+
+### Rust 1.85.0 lane
+
+Observed compiler:
+
+```text
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+```
+
+The workflow does not print an explicit `cargo --version`; Cargo is the toolchain
+Cargo installed with the pinned Rust 1.85.0 lane.
+
+Results:
+
+```text
+cargo check --locked --all-targets      PASS
+cargo test --locked --all-targets       PASS — 65 runtime tests
+cargo test --locked --doc               PASS — 4 doctests
+cargo clippy --locked --all-targets     PASS
+cargo doc --locked --no-deps            PASS
+```
+
+### Stable lane
+
+Observed compiler:
+
+```text
+rustc 1.98.0 (88d9e12ae 2026-08-18)
+```
+
+The workflow likewise does not print an explicit `cargo --version`; Cargo is the
+Cargo installed with that stable toolchain.
+
+Results:
+
+```text
+cargo check --locked --all-targets      PASS
+cargo test --locked --all-targets       PASS — 65 runtime tests
+cargo test --locked --doc               PASS — 4 doctests
+cargo clippy --locked --all-targets     PASS
+cargo doc --locked --no-deps            PASS
+```
+
+The warning output remains inherited prototype debt in unrelated historical
+modules. The corrected Lens implementation introduces no reported warning or
+Clippy diagnostic.
+
+## Mechanical and identity evidence
+
+The PR changes exactly these seven authorized paths:
+
+```text
+docs/active-development.md
+docs/architecture/vision.md
+docs/development/2026-08-28-r3-safe-lens-views.md
+docs/roadmap.md
+examples/r3_lens.rs
+src/strategies/lens.rs
+tests/r3_lens_api.rs
+```
+
+No `src/schematics/matrix.rs` or `src/lib.rs` adjustment was required. No
+mechanical out-of-primary-scope source adjustment was needed.
+
+`Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, and the Qualification workflow
+are unchanged. The Cargo.lock Git blob is identical to the accepted baseline, so
+its SHA-256 remains byte-identical:
+
+```text
+before 8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020
+after  8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020
+```
+
+The developer runtime has Git but no repository checkout and cannot reach
+GitHub directly through the shell, so literal local `git diff --check` and
+rustfmt execution were unavailable. The developer instead inspected the GitHub
+PR patch and changed-path set directly; no whitespace-only or unrelated-scope
+change is present. The GitHub Actions all-targets gates compile the new Rust on
+both supported lanes. This limitation is recorded rather than transferred to an
+owner-operated gate.
+
+No repository-local `target/` path was added to the PR.
 
 ## Preserved constraints
 
@@ -313,30 +421,61 @@ version      0.1.0
 MSRV         Rust 1.85.0
 edition      2021
 dependencies unchanged
-Cargo.lock   byte-identical expected SHA-256:
-8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020
+Cargo.lock   byte-identical
 ```
 
-R3 does not reconstruct Gear, Cog, Tag, Vector, unrelated operations, backend
-abstractions, parallel mutation, serialization, persistence, or release work.
+R3 adds no dependency, ndarray upgrade, backend abstraction, parallel Lens
+mutation, Serde, SurrealDB, Criterion, Rayon, Gear/Cog/Tag/Vector
+reconstruction, Cadenscript integration, release, tag, or publication work.
 
 ## Residual historical debt
 
-Inherited warnings, formatting residue, `MatrixContext`, Gear/Cog/Tag/Vector
-prototype debt, and unrelated operation placeholders remain outside R3. The
-parent-reference Lens representation prioritizes the proven safety/API contract;
-its iterator scans the parent logical iterator and filters the selected Region.
-R6 performance measurement may determine whether an internal ndarray-view
-representation is worthwhile, without changing the public API.
+Inherited warning and Clippy residue, `MatrixContext`, Gear/Cog/Tag/Vector
+prototype debt, and unrelated operation placeholders remain outside R3.
 
-## R3 exit evaluation and R4 recommendation
+The parent-reference Lens iterator scans the parent Matrix's logical row-major
+iterator and filters to the selected Region. That is allocation-free and
+semantically correct, but R6 performance measurement should decide whether an
+internal ndarray-view implementation is worth adopting. Such a private
+optimization need not change the public Lens contract.
 
-Before Teamlead handoff, R3 must still receive green Rust 1.85.0 and stable
-GitHub Qualification and final mechanical identity checks. If they pass, R3 is
-reviewable and the recommended next phase after Teamlead/owner acceptance is:
+## R3 exit evaluation
+
+```text
+Lens cannot outlive Matrix                              PASS
+LensMut tied to mutable Matrix borrow                   PASS
+simultaneous mutable borrowing rejected by Rust         PASS
+invalid Region selection returns typed error            PASS
+Lens-local invalid Index returns typed error             PASS
+immutable rectangular Lens                              PASS
+mutable rectangular Lens updates parent                 PASS
+row selection                                            PASS
+column selection                                         PASS
+zero-sized/empty selection semantics                    PASS
+logical deterministic row-major iteration               PASS
+Lens creation/iteration allocation contract             PASS
+explicit allocating owned conversion                    PASS
+property-style boundary coverage                        PASS
+external public API integration tests                   PASS
+runnable example compiles                               PASS
+positive rustdoc                                         PASS
+lifetime compile-fail rustdoc                           PASS
+mutable-alias compile-fail rustdoc                      PASS
+GAT-vs-lifetime comparison                              PASS
+GAT decision evidence-backed                            PASS
+project-authored R3 unsafe                              0 / PASS
+Miri/deeper aliasing evaluation                         PASS
+Rust 1.85 qualification                                 PASS
+stable qualification                                    PASS
+Cargo.lock unchanged                                    PASS
+existing GitHub CI                                      PASS
+```
+
+R3 is therefore a complete review candidate. The recommended next phase only
+after Teamlead/owner acceptance and merge is:
 
 ```text
 R4 — reintroduce Gear, Cog, and Tag
 ```
 
-R4 must not begin on this branch.
+Do not begin R4 on the R3 branch.
