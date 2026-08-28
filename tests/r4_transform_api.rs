@@ -1,7 +1,6 @@
 use matrical::{
     execute_mut, execute_read, AddScalarGear, ClampGear, ClampPolicy, Cog, GearEffect, Lens,
-    MatricalError, Matrix, MutGear, ReadGear, Region, ScalarPolicy, Shape, SumGear, Tag, TagStage,
-    ValidateCog,
+    MatricalError, Matrix, ReadGear, Region, ScalarPolicy, Shape, SumGear, Tag, TagStage, ValidateCog,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
