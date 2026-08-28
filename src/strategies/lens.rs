@@ -236,7 +236,7 @@ impl<'a, T> LensMut<'a, T> {
     }
 }
 
-fn selected_iter<I, T>(
+fn selected_iter<I>(
     iter: I,
     parent_columns: usize,
     region: Region,
