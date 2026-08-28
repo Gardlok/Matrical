@@ -460,12 +460,15 @@ mod tests {
     #[test]
     fn reversed_region_bounds_are_rejected() {
         let shape = Shape::new(3, 4).unwrap();
+        let reversed_rows = std::ops::Range { start: 2, end: 1 };
+        let reversed_columns = std::ops::Range { start: 3, end: 2 };
+
         assert!(matches!(
-            Region::new(shape, 2..1, 0..1),
+            Region::new(shape, reversed_rows, 0..1),
             Err(MatricalError::RegionReversed { .. })
         ));
         assert!(matches!(
-            Region::new(shape, 0..1, 3..2),
+            Region::new(shape, 0..1, reversed_columns),
             Err(MatricalError::RegionReversed { .. })
         ));
     }
