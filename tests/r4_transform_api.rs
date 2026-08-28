@@ -46,6 +46,19 @@ fn matrix() -> Matrix<f64> {
 }
 
 #[test]
+fn builtin_read_gear_handles_full_lens() {
+    let matrix = matrix();
+    let region = Region::new(matrix.shape(), 0..3, 0..4).unwrap();
+    let lens = matrix.lens(region).unwrap();
+
+    let report = execute_read(&SumGear, &lens, &Cog::new(()), vec![]).unwrap();
+
+    assert_eq!(report.region(), region);
+    assert_eq!(report.effect(), GearEffect::ReadOnly);
+    assert_eq!(*report.output(), 66.0);
+}
+
+#[test]
 fn public_api_composes_lens_gear_cog_tag_and_report() {
     let mut matrix = matrix();
     let region = Region::new(matrix.shape(), 1..3, 1..3).unwrap();
