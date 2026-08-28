@@ -59,7 +59,7 @@ impl CogOperation for CogOperationImpl {
             || self.bottom_right.0 >= context.data.dim().0
             || self.bottom_right.1 >= context.data.dim().1
         {
-            return Err(MatricalError::ShouldNotOccur); // TODO: Change this to IndexOutOfBounds
+            return Err(MatricalError::IndexOutOfBounds);
         }
 
         // Apply the cog operation logic here
@@ -100,13 +100,18 @@ impl CogStrategy for CogStrategyImpl {
         index: Option<(usize, usize)>,
         other: Option<bool>,
     ) -> Result<(), MatricalError> {
+        let context = cog
+            .context
+            .as_deref()
+            .ok_or(MatricalError::InvalidContext)?;
+
         // Check if the coordinates are within the matrix dimensions
-        if self.top_left.0 >= cog.context.as_ref().unwrap().data.dim().0
-            || self.top_left.1 >= cog.context.as_ref().unwrap().data.dim().1
-            || self.bottom_right.0 >= cog.context.as_ref().unwrap().data.dim().0
-            || self.bottom_right.1 >= cog.context.as_ref().unwrap().data.dim().1
+        if self.top_left.0 >= context.data.dim().0
+            || self.top_left.1 >= context.data.dim().1
+            || self.bottom_right.0 >= context.data.dim().0
+            || self.bottom_right.1 >= context.data.dim().1
         {
-            return Err(MatricalError::ShouldNotOccur);  // TODO: Change this to IndexOutOfBounds
+            return Err(MatricalError::IndexOutOfBounds);
         }
 
         // Execute the cog strategy logic here
@@ -168,6 +173,7 @@ impl CogBuilder {
     }
 }
 
+
 fn main() {
     let builder = CogBuilder::new((0, 0), (1, 1)).data(Array2::ones((2, 2)));
     let cog = builder.build();
@@ -178,6 +184,64 @@ fn main() {
 
     // let strategy = cog.strategy.unwrap().clone();
     // strategy.execute(cog, None, None).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cog_strategy_without_context_returns_invalid_context() {
+        let cog = CogBuilder::new((0, 0), (1, 1)).build();
+        let strategy = CogStrategyImpl::new((0, 0), (1, 1));
+
+        let result = strategy.execute(&cog, None, None);
+
+        assert!(matches!(result, Err(MatricalError::InvalidContext)));
+    }
+
+    #[test]
+    fn cog_operation_out_of_bounds_returns_index_out_of_bounds() {
+        let context = CogContext::new((0, 0), (1, 1), Array2::zeros((2, 2)));
+        let operation = CogOperationImpl::new((0, 0), (2, 1));
+
+        let result = operation.apply(&context);
+
+        assert!(matches!(
+            result,
+            Err(MatricalError::IndexOutOfBounds)
+        ));
+    }
+
+    #[test]
+    fn cog_strategy_out_of_bounds_returns_index_out_of_bounds() {
+        let cog = CogBuilder::new((0, 0), (1, 1))
+            .data(Array2::zeros((2, 2)))
+            .build();
+        let strategy = CogStrategyImpl::new((0, 0), (2, 1));
+
+        let result = strategy.execute(&cog, None, None);
+
+        assert!(matches!(
+            result,
+            Err(MatricalError::IndexOutOfBounds)
+        ));
+    }
+
+    #[test]
+    fn valid_cog_paths_remain_ok() {
+        let context = CogContext::new((0, 0), (1, 1), Array2::ones((2, 2)));
+        let operation = CogOperationImpl::new((0, 0), (1, 1));
+
+        assert!(operation.apply(&context).is_ok());
+
+        let cog = CogBuilder::new((0, 0), (1, 1))
+            .data(Array2::ones((2, 2)))
+            .build();
+        let strategy = CogStrategyImpl::new((0, 0), (1, 1));
+
+        assert!(strategy.execute(&cog, None, None).is_ok());
+    }
 }
 
 // The Cog struct
