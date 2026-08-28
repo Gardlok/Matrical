@@ -1,23 +1,25 @@
 # Matrical active development
 
-**Last updated:** 2026-08-25
+**Last updated:** 2026-08-28
 
 ## Accepted campaign baseline
 
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     1c5ec09346f249496f1bb2e72095e073b348568a
-tree       9677aa266b8aa403b4cdbfbe81c155c7a6a77861
+commit     1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136
+tree       c4480b98b776df55f2cb974a6ef675223a7a8c99
 version    0.1.0
 ```
 
-Commit `1c5ec09346f249496f1bb2e72095e073b348568a` merged PR #3 and owner-accepted
-R1-A. Its tree exactly matches the accepted R1-A candidate tree. PR #2 closed
-the R0 foundation at `dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1
-established it at `b929e48481ae7ab41c972447b1547671afe4a4d8`. The historical
-pre-campaign source baseline remains `6deb812e11a519404fec90408bf95651764cd2f8`
-with tree `9d643f5066c8e99ad111e5b0fe48265773a70092`.
+Commit `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136` merged PR #4 and owner-accepted
+R1-B. Its tree exactly matches the accepted R1-B candidate tree. PR #3
+owner-accepted R1-A at `1c5ec09346f249496f1bb2e72095e073b348568a` with tree
+`9677aa266b8aa403b4cdbfbe81c155c7a6a77861`. PR #2 closed the R0 foundation
+at `dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1 established it at
+`b929e48481ae7ab41c972447b1547671afe4a4d8`. The historical pre-campaign source
+baseline remains `6deb812e11a519404fec90408bf95651764cd2f8` with tree
+`9d643f5066c8e99ad111e5b0fe48265773a70092`.
 
 Neither baseline is a claim that the public library is functional or
 release-ready.
@@ -32,9 +34,11 @@ release-ready.
 
 **R1-A:** OWNER ACCEPTED — MERGED IN PR #3
 
-**R1-B:** LOCAL REVIEW CANDIDATE — TEAMLEAD GATE
+**R1-B:** OWNER ACCEPTED — MERGED IN PR #4
 
-**R1-C:** BLOCKED
+**R1-C:** LOCAL REVIEW CANDIDATE — TEAMLEAD GATE
+
+**Next source slice:** BLOCKED
 
 R1-A was dispatched from the exact accepted commit and tree above. Its
 reconnaissance report is
@@ -114,13 +118,17 @@ for R2 through R6 while leaving their exact APIs open to evidence and review.
 
 ## Current authorized work
 
-R1-B restores dependency and Rust 1.85 reproducibility from the exact accepted
-baseline above. The local candidate corrects Cargo metadata, pins the default
-toolchain, commits a freshly generated development lockfile, removes only the
-evidence-confirmed unearned dependencies, and removes the compiled imports made
-invalid by that pruning. Its evidence is recorded in
+R1-B is owner-accepted and merged in PR #4 at the exact accepted baseline
+above. Its reproducibility evidence remains preserved in
 [`development/2026-08-24-r1b-dependency-msrv-reproducibility.md`](development/2026-08-24-r1b-dependency-msrv-reproducibility.md).
 
-No R1-B draft PR or merge is claimed. The recursive `MatricalError` `Debug`
-defect remains the first source-correctness boundary. R1-C may not begin until
-the R1-B candidate passes Teamlead and owner gates.
+R1-C is the active local source-correctness slice. It repairs only the inherited
+recursive `MatricalError` `Debug` implementation, adds focused regression
+coverage for every current error variant, and re-runs Rust 1.85 and current
+stable qualification to discover the next real Clippy boundary. Both Clippy
+lanes now complete successfully; the remaining diagnostics are inherited
+warnings rather than a hard blocker. R1-C evidence is recorded in
+[`development/2026-08-28-r1c-source-correctness.md`](development/2026-08-28-r1c-source-correctness.md).
+
+Matrix/Lens/Gear/Cog/Tag reconstruction and any next source repair remain blocked
+until the R1-C candidate passes the Teamlead and owner gates.

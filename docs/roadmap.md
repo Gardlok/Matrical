@@ -6,7 +6,9 @@
 
 **Accepted R1-A merge:** `1c5ec09346f249496f1bb2e72095e073b348568a`
 
-**Current phase:** R1-B local review candidate; R1-C blocked
+**Accepted R1-B merge:** `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`
+
+**Current phase:** R1-C local review candidate; next source slice blocked
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -51,8 +53,9 @@ historical residue.
 Current progression:
 
 - R1-A reconnaissance is owner-accepted and merged in PR #3;
-- R1-B dependency/MSRV reproducibility is at the local Teamlead review gate;
-- R1-C source correctness remains blocked until R1-B is accepted and merged.
+- R1-B dependency/MSRV reproducibility is owner-accepted and merged in PR #4;
+- R1-C source correctness is a local review candidate at the Teamlead gate;
+- the next source slice and later reconstruction remain blocked.
 
 Planned work:
 
