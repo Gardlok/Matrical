@@ -18,8 +18,9 @@ owner-accepted R3. PR #7 owner-accepted R2 at
 `059f148a99cfe2b5b881ada9af9acc286f584b6a`; PR #5 owner-accepted R1-C at
 `16ddcc878c9cc8c8701dbc01453e08cfccd00b54`; PR #4 owner-accepted R1-B at
 `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`; PR #3 owner-accepted R1-A at
-`1c5ec09346f249496f1bb2e72095e073b348568a`. PR #2 closed the R0 foundation at
-`dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1 established it at
+`1c5ec09346f249496f1bb2e72095e073b348568a` with tree
+`9677aa266b8aa403b4cdbfbe81c155c7a6a77861`. PR #2 closed the R0 foundation
+at `dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1 established it at
 `b929e48481ae7ab41c972447b1547671afe4a4d8`. The historical pre-campaign source
 baseline remains `6deb812e11a519404fec90408bf95651764cd2f8` with tree
 `9d643f5066c8e99ad111e5b0fe48265773a70092`.
@@ -78,43 +79,56 @@ and qualified them rather than retroactively changing the reconnaissance result.
    qualification; downstream library users remain free to resolve within the
    published dependency constraints.
 8. Rayon remains deferred until R6 benchmark evidence. Crossbeam remains only
-   where historical compiled non-Matrix structures still require it.
+   where historical compiled non-Matrix structures still require it; R2 removes
+   Crossbeam queue storage from Matrix without broad dependency cleanup.
 9. Serde, DashMap, and Criterion remain absent until implemented serialization,
    map, or benchmark behavior earns them.
 10. Eventual crates.io publication remains a goal, but only after R8
    qualification and explicit owner authorization.
 
-## Historical findings that motivate rehabilitation
+## Baseline findings that motivate rehabilitation
 
 - the historical `Matrix<V>` was a queue-capacity shell rather than a usable
-  two-dimensional abstraction; R2 replaced it with checked dense
-  `ndarray::Array2<T>` storage behind Matrical invariants;
-- historical Gear owned independent `ndarray::Array2<f64>` data and performed
-  region mutation outside the accepted Matrix/Lens architecture;
-- historical Cog construction mixed callbacks, strategy objects, optional
-  context, and independent ndarray data;
-- historical Tag was a bare string name alongside unused parameterized-query/DI
-  residue;
-- `MatricalError` debug formatting was recursively defined until R1-C;
+  two-dimensional abstraction; R2 replaced that Matrix storage model with a
+  checked dense `ndarray::Array2<T>` core;
+- region mutation existed directly over `ndarray::Array2<f64>` in historical
+  Gear code, but that code is not the accepted Matrix or R3 Lens contract;
+- some public validation paths return success without executing strategies;
+- `MatricalError` debug formatting was recursively defined until R1-C
+  replaced the recursive formatter with derived `Debug`;
 - Cog construction permitted missing context that a later strategy path
   unwrapped until R1-D converted that boundary to `InvalidContext`;
-- the Vector implementation and several operation modules remain prototype debt;
+- the Vector implementation has trait bounds not implemented by Element;
+- several operation modules and the top-level matrix tests are empty or
+  commented placeholders;
 - concurrency, parallelism, persistence, and broader optimization aspirations
   remain unsupported until later contracts and evidence justify them.
 
-These findings remain historical inputs. R4 reconstructs only the transformation
-layer and does not silently declare unrelated prototype scaffolding complete.
+These findings remain historical inputs to rehabilitation. R4 replaces only the
+unfinished historical Gear/Cog/Tag meaning and does not silently declare the
+remaining prototype scaffolding complete.
 
 ## Downstream design input
 
-The proposed analytical typing application remains the first concrete downstream
+The proposed analytical typing application is the first concrete downstream
 consumer informing the rehabilitation campaign. Its non-binding design input is
 recorded in
 [`architecture/consumers/longitudinal-feature-analysis.md`](architecture/consumers/longitudinal-feature-analysis.md).
 
 The consumer note does not make Matrical responsible for typing capture,
 application identifiers, databases, cognitive-health interpretation, or
-domain-specific analyzers.
+domain-specific analyzers. It supplies concrete pressures and acceptance inputs
+for R2 through R6 while leaving their exact APIs open to evidence and review.
+
+## R0 acceptance evidence
+
+- PR #1 established the rehabilitation foundation at `b929e484...`;
+- PR #2 closed R0-F at `dea2adb83404743558ae9da7a3d94aefdad4b903`;
+- each accepted candidate tree exactly matched its merged tree;
+- the change was documentation-only;
+- `git diff --check`, trailing-whitespace inspection, and relative-link
+  verification passed before merge;
+- no executable behavior, dependency graph, version, or release state changed.
 
 ## R1 closeout evidence
 
@@ -126,15 +140,16 @@ added focused regressions, and established two-lane qualification CI for Rust
 1.85.0 and current stable. Its evidence remains preserved in
 [`development/2026-08-28-r1d-runtime-safety-ci-closeout.md`](development/2026-08-28-r1d-runtime-safety-ci-closeout.md).
 
-PR #6 merged the owner-accepted R1-D result. R1 exit criteria are satisfied.
+PR #6 merged the owner-accepted R1-D result. R1 exit criteria are satisfied and
+R1 is complete.
 
 ## R2 core result
 
-R2 established the checked public core around `Shape`, `Index`, `Region`,
+R2 established the first checked public core around `Shape`, `Index`, `Region`,
 `Matrix<T>`, and `MatricalError`:
 
-- zero-sized shapes are valid;
-- shape element-count overflow is rejected during construction;
+- zero-sized shapes (`0 x 0`, `0 x N`, `N x 0`) are valid;
+- shape element-count overflow is rejected during `Shape` construction;
 - public element access is checked through `Index` and returns typed errors;
 - `Region` uses checked half-open row and column bounds and permits empty
   regions;
@@ -142,36 +157,42 @@ R2 established the checked public core around `Shape`, `Index`, `Region`,
   deterministic logical row-major contract;
 - Matrix storage is private `ndarray::Array2<T>` with no unrestricted mutable
   backend escape hatch;
-- a validity/missingness mask is not intrinsic Matrix storage;
-- GATs/HRTBs were not forced into the owned R2 core.
+- a validity/missingness mask is not intrinsic Matrix storage; it belongs in an
+  explicit paired structure, wrapper, or downstream domain type unless later
+  evidence proves otherwise;
+- GATs/HRTBs were not forced into the owned R2 core. R3 compares a GAT-backed
+  lending-view design with a concrete lifetime-generic design.
 
-PR #7 merged the owner-accepted R2 result. Preserved evidence remains in
+PR #7 merged the owner-accepted R2 result. The preserved R2 evidence remains in
 [`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
 
 ## R3 borrowing-view result
 
-R3 replaced the historical Lens prototype with concrete `Lens<'a, T>` and
-`LensMut<'a, T>` borrowing views over the checked parent Matrix. Immutable Lens
-stores `&Matrix<T>` and mutable Lens stores `&mut Matrix<T>`, making lifetime and
-mutable exclusivity visible to the borrow checker without project-authored
-unsafe code or runtime overlap tracking.
+R3 replaced the historical validation/strategy Lens prototype with concrete
+`Lens<'a, T>` and `LensMut<'a, T>` borrowing views. The accepted implementation
+keeps ndarray private by borrowing the checked parent `Matrix<T>` directly:
+immutable Lens stores `&Matrix<T>` and mutable Lens stores `&mut Matrix<T>`.
+This makes Matrix lifetime and mutable exclusivity visible to the Rust borrow
+checker without project-authored unsafe code or runtime overlap tracking.
 
-The selected `Region` remains in parent coordinates while public `Index` access
-is Lens-local. Construction, checked access, row/column selection, and iteration
-are borrowing operations; `to_row_major()` is the explicit allocating
-conversion. Iteration is deterministic logical row-major order.
+The selected `Region` remains expressed in parent coordinates. Public `Index`
+access through either Lens is Lens-local, so local `(0, 0)` maps to the Region's
+top-left parent coordinate. Row/column selectors return the same rectangular
+Lens types, including `1 x 0` rows for in-range rows of `N x 0` matrices and
+`0 x 1` columns for in-range columns of `0 x N` matrices.
 
-R3 compared concrete lifetime-generic views with a public GAT lending provider
-and deferred the GAT surface because the concrete design was simpler and Matrix
-was the only proven provider. R4 must reassess that decision using real Gear
-composition and authority boundaries rather than copying the R3 rationale.
+Creation, checked access, row/column selection, and iteration are borrowing
+operations and do not intentionally allocate. `to_row_major()` is the explicit
+allocating `T: Clone` conversion. Logical iteration is row-major within the
+selected rectangle and does not promise physical contiguity.
 
-PR #8 merged the owner-accepted R3 result. Detailed evidence remains in
+PR #8 merged the owner-accepted R3 result. The detailed R3 design and
+qualification record remains
 [`development/2026-08-28-r3-safe-lens-views.md`](development/2026-08-28-r3-safe-lens-views.md).
 
 ## R4 transformation candidate
 
-R4 is rebuilding Gear, Cog, and Tag around the accepted Lens capability:
+R4 rebuilds Gear, Cog, and Tag around the accepted Lens capability boundary:
 
 ```text
 Matrix<T>
@@ -182,30 +203,29 @@ Matrix<T>
     +  bounded Tag provenance
 ```
 
-The central authority rule is that a Gear operates only on data exposed through
-the Lens it receives. Read and mutating Gear traits are distinct. Typed Cog
-context is resolved and validated centrally before execution. Missing required
-context returns `InvalidContext`. Tags are bounded inert provenance and are not
-passed into Gear execution. Reports record Gear identity, exact Region, typed
-effect, typed output, and ordered Tags.
+Read and mutating Gear contracts are distinct. A Gear receives only the Lens
+selected by the caller; it does not receive Matrix storage or authority to select
+a larger Region. Typed Cog context is resolved and validated before execution,
+with missing required context returning `InvalidContext`. Tags are bounded inert
+provenance and never enter the Gear call. Reports preserve Gear identity, exact
+Region, typed effect, typed outcome, and ordered Tags.
 
 Built-in R4 examples are deterministic `SumGear`, `AddScalarGear`, `ScaleGear`,
-and `ClampGear`. Downstream crates can implement the public Gear traits directly
-with static dispatch and no registry.
+and `ClampGear`. Downstream crates can define Gears through the public traits with
+static dispatch and no registry.
 
-The detailed implementation and decision record is
+The detailed implementation and qualification record is
 [`development/2026-08-28-r4-transform-composition.md`](development/2026-08-28-r4-transform-composition.md).
 
 ## Residual historical debt
 
-R4 does not reconstruct Vector, unrelated operation modules, detached
-`MatrixContext`, dependency cleanup, or inherited warning/formatting residue.
-Those remain outside the transformation-layer exit gate.
+R4 intentionally does not reconstruct Vector, the broader operation framework,
+detached `MatrixContext`, dependency cleanup, or inherited warning/formatting
+residue. Those remain outside the transformation-layer exit gate.
 
 ## Current gate
 
-R4 development is active on `rehab/r4-transform-composition` from accepted
-baseline `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`, tree
-`4db71daeb50553edc6cdc69a2986f93087be4f35`. R5 remains blocked until the R4
-candidate completes exact-head qualification and receives Teamlead/owner
-acceptance.
+R4 is a ready-for-review candidate on `rehab/r4-transform-composition` from
+accepted baseline `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`, tree
+`4db71daeb50553edc6cdc69a2986f93087be4f35`. R5 remains blocked until R4
+receives Teamlead/owner acceptance and is merged.
