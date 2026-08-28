@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 
 // // Error handling
+#[derive(Debug)]
 pub enum MatricalError {
     Regular(MatricalErrorType),
     Custom(String),
@@ -30,16 +31,12 @@ pub enum AtomicBoolError {
     MissingOperand,
 }
 
+#[derive(Debug)]
 pub enum MatricalErrorType {
     IncorrectDimensions,
     IncorrectFormat,
 }
 
-impl fmt::Debug for MatricalError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
 
 
 
@@ -80,3 +77,51 @@ pub struct Error {
 //         }
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::{MatricalError, MatricalErrorType};
+
+    #[test]
+    fn debug_formatting_identifies_regular_error_types() {
+        let cases = [
+            (
+                MatricalErrorType::IncorrectDimensions,
+                "IncorrectDimensions",
+            ),
+            (MatricalErrorType::IncorrectFormat, "IncorrectFormat"),
+        ];
+
+        for (error_type, expected) in cases {
+            let rendered = format!("{:?}", MatricalError::Regular(error_type));
+
+            assert!(rendered.contains("Regular"));
+            assert!(rendered.contains(expected));
+        }
+    }
+
+    #[test]
+    fn debug_formatting_identifies_non_regular_variants() {
+        let cases = [
+            (
+                MatricalError::Custom("r1c custom context".to_string()),
+                "Custom",
+                Some("r1c custom context"),
+            ),
+            (MatricalError::InvalidValue, "InvalidValue", None),
+            (MatricalError::InvalidContext, "InvalidContext", None),
+            (MatricalError::ShouldNotOccur, "ShouldNotOccur", None),
+            (MatricalError::IndexOutOfBounds, "IndexOutOfBounds", None),
+        ];
+
+        for (error, expected_variant, expected_context) in cases {
+            let rendered = format!("{:?}", error);
+
+            assert!(rendered.contains(expected_variant));
+
+            if let Some(expected_context) = expected_context {
+                assert!(rendered.contains(expected_context));
+            }
+        }
+    }
+}
