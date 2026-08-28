@@ -12,7 +12,8 @@
 
 **Accepted R1-D merge:** `059f148a99cfe2b5b881ada9af9acc286f584b6a`
 
-**Current phase:** R2 complete pending Teamlead/owner acceptance; R1 complete and owner-accepted
+**Current phase:** R2 complete pending Teamlead/owner acceptance; R3 blocked only
+on R2 Teamlead/owner acceptance
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -35,23 +36,50 @@ should not bypass an earlier invariant or acceptance gate.
 **Goal:** replace stale project claims with truthful documentation and a durable
 rehabilitation workflow.
 
-R0 established the architecture vision, nomenclature, roadmap, testing/evidence
-workflow, exact-baseline tracking, and owner decision record.
+Deliverables:
+
+- current README and contribution guide;
+- architecture vision and nomenclature contract;
+- slice-based roadmap;
+- local testing and evidence procedure;
+- Teamlead prompt, handoff, review, and acceptance protocol;
+- active-development record tied to the exact historical baseline.
+
+Exit gate:
+
+- documentation is internally consistent;
+- links and diff hygiene pass;
+- no executable claim is added;
+- accepted owner decisions and remaining proposals are distinguished explicitly.
 
 ## R1 — Reproduce and classify the historical baseline
 
 **Status:** COMPLETE — OWNER ACCEPTED
 
-Progression:
+**Goal:** establish what builds, what fails, and which dependencies or APIs are
+historical residue.
 
-- R1-A reconnaissance: merged in PR #3;
-- R1-B dependency/MSRV reproducibility: merged in PR #4;
-- R1-C source correctness: merged in PR #5;
-- R1-D runtime safety and qualification CI: merged in PR #6.
+Completed progression:
 
-R1 established Rust 1.85.0/MSRV reproducibility, a committed lockfile policy,
-source-correctness repairs, runtime-safety repairs, and two-lane qualification
-CI. Its exit criteria are satisfied.
+- R1-A reconnaissance: owner-accepted and merged in PR #3;
+- R1-B dependency/MSRV reproducibility: owner-accepted and merged in PR #4;
+- R1-C source correctness: owner-accepted and merged in PR #5;
+- R1-D runtime safety, qualification CI, and R1 closeout: owner-accepted and
+  merged in PR #6.
+
+R1 work established the Rust 1.85.0 MSRV, committed `Cargo.lock` policy,
+compile/test/rustdoc/Clippy classification, source-correctness repairs,
+runtime-safety repairs, two-lane qualification CI, and prototype compatibility
+position without broad historical cleanup.
+
+Exit gate:
+
+- the baseline result is reproducible from a clean checkout: PASS;
+- every blocking failure was classified and repaired or retained as explicit
+  non-blocking historical debt: PASS;
+- the owner accepted the compatibility and versioning position: PASS.
+
+**R1 exit criteria: satisfied.**
 
 ## R2 — Rebuild the core invariants
 
@@ -80,11 +108,12 @@ Exit gate:
 
 - no ordinary invalid shape, index, or region causes a panic: PASS;
 - zero-sized and overflow boundaries are specified and tested: PASS;
-- the public core can be consumed through intended crate-root exports: PASS;
+- the public core can be used by a downstream-style integration test and
+  runnable example: PASS;
 - Matrix no longer uses queue capacity as storage or shape: PASS;
-- Miri/deeper checking is evaluated against the actual unsafe/aliasing surface:
-  PASS — no unsafe/aliasing machinery is introduced in the owned R2 core; Miri
-  is deferred for reconsideration with mutable borrowed Lens semantics in R3.
+- Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope:
+  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri is
+  low-value here and must be reconsidered with borrowed mutable Lens semantics.
 
 ```text
 R2: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
@@ -102,25 +131,11 @@ Planned work:
 - immutable rectangular Lens;
 - mutable rectangular Lens with exclusive borrowing;
 - row and column selectors;
-- compare a GAT-backed lending-view design against a simpler lifetime-generic
-  design and adopt GATs only if they provide a concrete correctness/usability
-  benefit;
+- explicitly compare a GAT-backed lending-view design with a simpler
+  lifetime-generic design and adopt GATs only if they provide a concrete
+  correctness/usability benefit;
 - iteration and conversion rules;
 - compile-time lifetime examples and negative API tests where useful.
-
-A conceptual design probe remains:
-
-```rust
-trait LendingView {
-    type View<'a>
-    where
-        Self: 'a;
-
-    fn view<'a>(&'a self) -> Self::View<'a>;
-}
-```
-
-This is not an R2 API commitment.
 
 Exit gate:
 
@@ -133,52 +148,129 @@ Exit gate:
 
 **Goal:** turn the nomenclature into a coherent transformation API.
 
-Deliver typed transformation/context/provenance contracts after Lens semantics
-are proven. A Gear must not bypass Lens bounds, and missing required context must
-remain a typed failure rather than a panic.
+Planned work:
+
+- a minimal Gear trait or operation protocol;
+- distinct read-only and mutating transformation contracts unless working Lens
+  evidence justifies another effect-safe design;
+- first-class downstream-defined Gears without a required runtime registry;
+- several concrete transformations with deterministic behavior;
+- typed Cog requirements and validation;
+- bounded Tag/provenance representation;
+- execution reports that identify selection, operation, and outcome;
+- examples demonstrating composition without runtime-pattern ceremony.
+
+Exit gate:
+
+- every concept has a distinct responsibility;
+- a Gear cannot bypass Lens bounds;
+- required context cannot be absent at runtime without a typed error;
+- examples demonstrate both static and, only if justified, dynamic dispatch.
 
 ## R5 — API ergonomics and learning surface
 
 **Goal:** make the library understandable and pleasant for a downstream user.
 
-Expand crate/module rustdoc, runnable examples, naming/conversion consistency,
-misuse tests, error-message review, and API stability/deprecation policy.
+Planned work:
+
+- crate-level rustdoc and module guides;
+- runnable examples from construction through transformation;
+- consistent naming, builders, conversions, and prelude policy;
+- compile-fail tests for important misuse;
+- error messages reviewed from the caller's perspective;
+- an API stability and deprecation policy.
+
+Exit gate:
+
+- a new user can complete representative tasks from documentation alone;
+- every public item is documented or intentionally hidden;
+- examples are compiled in CI;
+- downstream smoke tests pass on the declared MSRV.
 
 ## R6 — Measure, then optimize
 
 **Goal:** establish performance evidence before adding complexity.
 
-Add representative benchmarks, allocation/copy accounting, comparison with
-direct ndarray operations, and optional parallel execution only when measured
-thresholds justify it.
+Planned work:
+
+- Criterion benchmarks for representative shapes and operations;
+- tall, moderately narrow consumer shapes including `32 x 24`, `1,024 x 64`,
+  and `100,000 x 64` where host resources permit;
+- allocation and copy accounting for Lens and Gear paths;
+- comparison against direct underlying-storage operations;
+- a stated overhead budget relative to direct `ndarray` operations;
+- profiling before layout or dispatch changes;
+- optional Rayon-backed execution only where thresholds show benefit.
+
+Exit gate:
+
+- benchmarks are stable enough to detect regressions;
+- every optimization documents its tradeoff and baseline;
+- parallel results preserve the accepted sequential semantics;
+- performance claims name the workload and environment.
 
 ## R7 — Optional backends and integrations
 
 **Goal:** add extensibility only after the core demonstrates a real need.
 
-Candidates include serialization, sparse/mapped storage, backend/lending-view
-traits, and isolated persistence research. At least two real implementations
-must justify shared backend abstractions.
+Candidate work:
+
+- serialization and durable representation;
+- sparse or mapped storage;
+- backend/lending-view traits, with GATs considered only when real
+  implementations justify the borrowing abstraction;
+- optional persistence research;
+- SurrealDB integration only with a concrete use case and isolated feature graph.
+
+Exit gate:
+
+- at least two real implementations justify the abstraction;
+- default users do not pay for unused integrations;
+- feature combinations and compatibility are tested;
+- persistence does not become a hidden mutation or authority channel.
 
 ## R8 — Release qualification
 
 **Goal:** prepare the first rehabilitated release candidate.
 
-Versioning, changelog/migration work, MSRV/stable/downstream qualification,
-documentation audit, benchmark baseline, and crates.io publication remain
-explicit R8/owner decisions. The likely release line is `0.2.0`.
+Planned work:
+
+- version and compatibility decision;
+- changelog, migration notes, package metadata, and license audit;
+- MSRV/current-stable/downstream qualification;
+- documentation and example audit;
+- benchmark baseline and known-limitations statement;
+- owner-controlled crates.io publication decision.
+
+The likely release line is `0.2.0`, but version bumping, tagging, and publication
+remain explicit owner decisions.
 
 ## Advanced Rust policy
 
-GATs, HRTBs, and related type-system tools are welcome only when they materially
-encode a real ownership, borrowing, lending, callback, or extensibility
-contract. They are not syntax goals.
+GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
+goals. Use them only when they encode a real ownership, borrowing, lending, or
+extensibility contract more clearly and safely than a simpler API.
 
-R2 deliberately does not force them into the owned Matrix core. R3 carries the
-explicit evidence-driven Lens/lending-view comparison.
+R2 deliberately does not force GATs into the owned Matrix core. R3 explicitly
+retains the GAT evaluation for Lens and lending views. A conceptual shape for
+that comparison is:
+
+    trait LendingView {
+        type View<'a>
+        where
+            Self: 'a;
+
+        fn view<'a>(&'a self) -> Self::View<'a>;
+    }
+
+This remains a design probe, not an R2 implementation contract. R3 must compare
+it against a simpler lifetime-generic design and choose based on evidence.
+
+Later backend abstractions may revisit GATs or HRTBs only when concrete
+implementations justify the additional type-system complexity.
 
 ## Cross-cutting requirements
 
 Testing, documentation, examples, and dependency review are not final cleanup
-slices. Each functional slice carries the evidence and learning surface needed
+slices. Each functional slice must carry the evidence and learning surface needed
 to make its own contract reviewable.
