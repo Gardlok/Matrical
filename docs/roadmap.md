@@ -10,8 +10,10 @@
 
 **Accepted R1-C merge:** `16ddcc878c9cc8c8701dbc01453e08cfccd00b54`
 
-**Current phase:** R1-D ready for Teamlead final review; R2 blocked only on
-R1-D merge acceptance
+**Accepted R1-D merge:** `059f148a99cfe2b5b881ada9af9acc286f584b6a`
+
+**Current phase:** R2 complete pending Teamlead/owner acceptance; R3 blocked only
+on R2 Teamlead/owner acceptance
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -28,6 +30,8 @@ should not bypass an earlier invariant or acceptance gate.
 - **Deferred** — intentionally outside the current campaign boundary.
 
 ## R0 — Establish the base of operations
+
+**Status:** COMPLETE — OWNER ACCEPTED
 
 **Goal:** replace stale project claims with truthful documentation and a durable
 rehabilitation workflow.
@@ -50,64 +54,75 @@ Exit gate:
 
 ## R1 — Reproduce and classify the historical baseline
 
+**Status:** COMPLETE — OWNER ACCEPTED
+
 **Goal:** establish what builds, what fails, and which dependencies or APIs are
 historical residue.
 
-Current progression:
+Completed progression:
 
-- R1-A reconnaissance is owner-accepted and merged in PR #3;
-- R1-B dependency/MSRV reproducibility is owner-accepted and merged in PR #4;
-- R1-C source correctness is owner-accepted and merged in PR #5;
-- R1-D runtime safety, qualification CI, and R1 closeout are ready for
-  Teamlead final review;
-- R2 remains blocked only on R1-D merge acceptance.
+- R1-A reconnaissance: owner-accepted and merged in PR #3;
+- R1-B dependency/MSRV reproducibility: owner-accepted and merged in PR #4;
+- R1-C source correctness: owner-accepted and merged in PR #5;
+- R1-D runtime safety, qualification CI, and R1 closeout: owner-accepted and
+  merged in PR #6.
 
-Planned work:
-
-- verify the accepted Rust 1.85.0 MSRV and record a development toolchain
-  policy;
-- establish the repository `Cargo.lock` policy;
-- run compile, unit-test, rustdoc, and Clippy reconnaissance without broad
-  cleanup;
-- classify compiler errors, warnings, unused dependencies, empty modules,
-  placeholders, panic paths, and unreachable APIs;
-- establish minimal CI for the accepted toolchain and one current stable lane;
-- record whether 0.1.0 is treated as an unpublished prototype API.
+R1 work established the Rust 1.85.0 MSRV, committed `Cargo.lock` policy,
+compile/test/rustdoc/Clippy classification, source-correctness repairs,
+runtime-safety repairs, two-lane qualification CI, and prototype compatibility
+position without broad historical cleanup.
 
 Exit gate:
 
-- the baseline result is reproducible from a clean checkout;
-- every failure is classified as product, dependency, toolchain, environment,
-  or harness debt;
-- the owner accepts the compatibility and versioning position.
+- the baseline result is reproducible from a clean checkout: PASS;
+- every blocking failure was classified and repaired or retained as explicit
+  non-blocking historical debt: PASS;
+- the owner accepted the compatibility and versioning position: PASS.
 
-**R1 exit criteria: satisfied by the qualified R1-D candidate.**
-
-Advancement into R2 remains blocked until R1-D is accepted and merged.
+**R1 exit criteria: satisfied.**
 
 ## R2 — Rebuild the core invariants
 
+**Status:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+
 **Goal:** provide a small useful Matrix with typed failures.
 
-Planned work:
+Delivered:
 
-- public `MatricalError` contract;
-- checked `Shape`, `Index`, and rectangular `Region` types;
-- owned dense `Matrix<T>` construction and access;
-- an explicit decision on whether validity masks belong in Matrical core, a
-  paired structure, or a downstream wrapper;
-- deterministic iteration and conversion behavior;
-- rustdoc examples and boundary-focused tests;
-- removal or quarantine of queue-based placeholder storage.
+- public `MatricalError` and `std::error::Error` contract;
+- checked `Shape`, `Index`, and half-open rectangular `Region` types;
+- owned dense `Matrix<T>` backed privately by `ndarray::Array2<T>`;
+- exact row-major construction with typed length mismatch;
+- checked immutable and mutable access;
+- deterministic row-major iteration, mutable iteration, and owned conversion;
+- zero-sized, overflow, indexing, and region boundary coverage;
+- public downstream-style integration test, runnable example, and compiled
+  rustdoc example;
+- explicit validity-mask decision: missingness is not intrinsic Matrix storage;
+- removal of queue-backed Matrix storage while retaining detached
+  `MatrixContext` only as required historical scaffolding;
+- explicit unsafe/Miri evaluation for the owned core;
+- successful existing-CI qualification on Rust 1.85.0 and stable.
 
 Exit gate:
 
-- no ordinary invalid shape, index, or region causes a panic;
-- zero-sized and overflow boundaries are specified and tested;
-- the public core can be used by a downstream example crate;
-- Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope.
+- no ordinary invalid shape, index, or region causes a panic: PASS;
+- zero-sized and overflow boundaries are specified and tested: PASS;
+- the public core can be used by a downstream-style integration test and
+  runnable example: PASS;
+- Matrix no longer uses queue capacity as storage or shape: PASS;
+- Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope:
+  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri is
+  low-value here and must be reconsidered with borrowed mutable Lens semantics.
+
+```text
+R2: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+Next phase after merge: R3 — make Lens real
+```
 
 ## R3 — Make Lens real
+
+**Status:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
 
 **Goal:** deliver safe, borrowing views over Matrix data.
 
@@ -116,8 +131,9 @@ Planned work:
 - immutable rectangular Lens;
 - mutable rectangular Lens with exclusive borrowing;
 - row and column selectors;
-- explicitly evaluate whether GAT-backed lending views express Matrix/Lens
-  borrowing more clearly and safely than ordinary lifetime parameters;
+- explicitly compare a GAT-backed lending-view design with a simpler
+  lifetime-generic design and adopt GATs only if they provide a concrete
+  correctness/usability benefit;
 - iteration and conversion rules;
 - compile-time lifetime examples and negative API tests where useful.
 
@@ -235,8 +251,9 @@ GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
 goals. Use them only when they encode a real ownership, borrowing, lending, or
 extensibility contract more clearly and safely than a simpler API.
 
-R3 will explicitly evaluate GATs for Lens and lending views. A conceptual shape
-for that evaluation is:
+R2 deliberately does not force GATs into the owned Matrix core. R3 explicitly
+retains the GAT evaluation for Lens and lending views. A conceptual shape for
+that comparison is:
 
     trait LendingView {
         type View<'a>
@@ -246,8 +263,8 @@ for that evaluation is:
         fn view<'a>(&'a self) -> Self::View<'a>;
     }
 
-This is a design probe, not an R1-D implementation contract. R1-D introduces no
-GAT or HRTB API.
+This remains a design probe, not an R2 implementation contract. R3 must compare
+it against a simpler lifetime-generic design and choose based on evidence.
 
 Later backend abstractions may revisit GATs or HRTBs only when concrete
 implementations justify the additional type-system complexity.

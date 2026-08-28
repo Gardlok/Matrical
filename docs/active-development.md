@@ -7,14 +7,14 @@
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     16ddcc878c9cc8c8701dbc01453e08cfccd00b54
-tree       b5dc20f2bb85840e7f2c08ecf2c4c6ca346bb1bc
+commit     059f148a99cfe2b5b881ada9af9acc286f584b6a
+tree       0ad0e91d983912f743dc16972eb11a5a79afb286
 version    0.1.0
 ```
 
-Commit `16ddcc878c9cc8c8701dbc01453e08cfccd00b54` merged PR #5 and
-owner-accepted R1-C. Its tree exactly matches the accepted R1-C candidate tree.
-PR #4 owner-accepted R1-B at
+Commit `059f148a99cfe2b5b881ada9af9acc286f584b6a` merged PR #6 and
+owner-accepted R1-D. PR #5 owner-accepted R1-C at
+`16ddcc878c9cc8c8701dbc01453e08cfccd00b54`; PR #4 owner-accepted R1-B at
 `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`; PR #3 owner-accepted R1-A at
 `1c5ec09346f249496f1bb2e72095e073b348568a` with tree
 `9677aa266b8aa403b4cdbfbe81c155c7a6a77861`. PR #2 closed the R0 foundation
@@ -23,8 +23,7 @@ at `dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1 established it at
 baseline remains `6deb812e11a519404fec90408bf95651764cd2f8` with tree
 `9d643f5066c8e99ad111e5b0fe48265773a70092`.
 
-Neither baseline is a claim that the public library is functional or
-release-ready.
+Neither baseline is a claim that the public library is release-ready.
 
 ## Active campaign
 
@@ -40,12 +39,16 @@ release-ready.
 
 **R1-C:** OWNER ACCEPTED — MERGED IN PR #5
 
-**R1-D:** READY FOR TEAMLEAD FINAL REVIEW
+**R1-D:** OWNER ACCEPTED — MERGED IN PR #6
 
-**Next phase:** R2 — BLOCKED ONLY ON R1-D MERGE ACCEPTANCE
+**R1:** COMPLETE — OWNER ACCEPTED
 
-R1-A was dispatched from the exact accepted commit and tree above. Its
-reconnaissance report is
+**R2:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+
+**R3:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
+
+R1-A was dispatched from its exact accepted commit and tree. Its reconnaissance
+report is
 [`development/2026-08-20-r1a-baseline-reconnaissance.md`](development/2026-08-20-r1a-baseline-reconnaissance.md).
 
 The initial cloud environment could not execute Rust tooling. Orion completed
@@ -54,8 +57,8 @@ fresh resolutions drifted, and the resolved graph failed the Rust 1.85 MSRV
 check before Matrical source compilation. The unchanged source compiled and all
 24 discovered tests passed with the same locked graph on Rust 1.93.1. Clippy
 confirmed recursive `MatricalError` debug formatting as a source correctness
-defect. R1-A successfully established these blockers; it does not qualify the
-library baseline as reproducible or Rust-1.85-compatible.
+defect. R1-A successfully established these blockers; later R1 slices repaired
+and qualified them rather than retroactively changing the reconnaissance result.
 
 ## Accepted owner decisions
 
@@ -71,9 +74,9 @@ library baseline as reproducible or Rust-1.85-compatible.
 7. The root `Cargo.lock` is committed for reproducible campaign and CI
    qualification; downstream library users remain free to resolve within the
    published dependency constraints.
-8. Rayon remains deferred until R6 benchmark evidence. Crossbeam is temporarily
-   retained because compiled historical Matrix, Vector, and Element types use
-   it; its removal belongs to later source/invariant reconstruction.
+8. Rayon remains deferred until R6 benchmark evidence. Crossbeam remains only
+   where historical compiled non-Matrix structures still require it; R2 removes
+   Crossbeam queue storage from Matrix without broad dependency cleanup.
 9. Serde, DashMap, and Criterion remain absent until implemented serialization,
    map, or benchmark behavior earns them.
 10. Eventual crates.io publication remains a goal, but only after R8
@@ -81,23 +84,24 @@ library baseline as reproducible or Rust-1.85-compatible.
 
 ## Baseline findings that motivate rehabilitation
 
-- `Matrix<V>` is a queue-capacity shell rather than a usable two-dimensional
-  abstraction.
-- region mutation exists directly over `ndarray::Array2<f64>` in Gear, but the
-  behavior is not integrated with Matrix or Lens.
-- some public validation paths return success without executing strategies.
+- the historical `Matrix<V>` was a queue-capacity shell rather than a usable
+  two-dimensional abstraction; R2 replaces that Matrix storage model with a
+  checked dense `ndarray::Array2<T>` core;
+- region mutation exists directly over `ndarray::Array2<f64>` in historical
+  Gear code, but that code is not the R2 Matrix or future Lens contract;
+- some public validation paths return success without executing strategies;
 - `MatricalError` debug formatting was recursively defined until R1-C
-  replaced the recursive formatter with derived `Debug`.
+  replaced the recursive formatter with derived `Debug`;
 - Cog construction permitted missing context that a later strategy path
-  unwrapped until R1-D converted that boundary to `InvalidContext`.
-- the Vector implementation has trait bounds not implemented by Element.
+  unwrapped until R1-D converted that boundary to `InvalidContext`;
+- the Vector implementation has trait bounds not implemented by Element;
 - several operation modules and the top-level matrix tests are empty or
-  commented placeholders.
+  commented placeholders;
 - concurrency, parallelism, persistence, and zero-copy aspirations are not yet
   supported by defined public contracts or evidence.
 
-These findings are inputs to R1 and later slices. R0 did not silently repair,
-delete, or declare compatibility for the historical code.
+These findings remain historical inputs to rehabilitation. R2 repairs the Matrix
+core without silently declaring the remaining prototype scaffolding complete.
 
 ## Downstream design input
 
@@ -121,23 +125,53 @@ for R2 through R6 while leaving their exact APIs open to evidence and review.
   verification passed before merge;
 - no executable behavior, dependency graph, version, or release state changed.
 
-## Current authorized work
+## R1 closeout evidence
 
-R1-C is owner-accepted and merged in PR #5 at the exact accepted baseline above.
-Its source-correctness evidence remains preserved in
+R1-C source-correctness evidence remains preserved in
 [`development/2026-08-28-r1c-source-correctness.md`](development/2026-08-28-r1c-source-correctness.md).
 
-R1-D is the active R1 closeout candidate. It repairs the confirmed Cog and
-nested-validation runtime-safety boundaries, adds five focused regressions, and
-establishes two-lane qualification CI for Rust 1.85.0 and current stable.
-
-Local qualification passes on Rust 1.85.0 and stable Rust 1.98.0 with all 31
-tests passing on both lanes. `Cargo.lock` remains byte-identical, build output
-remains outside the repository, and remaining Clippy diagnostics are inherited
-warning debt rather than a hard R1 blocker.
-
-R1-D evidence is recorded in
+R1-D repaired the confirmed Cog and nested-validation runtime-safety boundaries,
+added focused regressions, and established two-lane qualification CI for Rust
+1.85.0 and current stable. Its evidence remains preserved in
 [`development/2026-08-28-r1d-runtime-safety-ci-closeout.md`](development/2026-08-28-r1d-runtime-safety-ci-closeout.md).
 
-R1 exit criteria are satisfied by the local R1-D candidate. R2 remains blocked
-until R1-D passes Teamlead/owner acceptance and is merged.
+PR #6 merged the owner-accepted R1-D result at the exact current baseline above.
+R1 exit criteria are satisfied and R1 is complete.
+
+## R2 core result
+
+R2 establishes the first checked public core around `Shape`, `Index`, `Region`,
+`Matrix<T>`, and `MatricalError`:
+
+- zero-sized shapes (`0 x 0`, `0 x N`, `N x 0`) are valid;
+- shape element-count overflow is rejected during `Shape` construction;
+- public element access is checked through `Index` and returns typed errors;
+- `Region` uses checked half-open row and column bounds and permits empty
+  regions;
+- Matrix construction, iteration, mutable iteration, and owned conversion use a
+  deterministic logical row-major contract;
+- Matrix storage is private `ndarray::Array2<T>` with no unrestricted mutable
+  backend escape hatch;
+- a validity/missingness mask is not intrinsic Matrix storage; it belongs in an
+  explicit paired structure, wrapper, or downstream domain type unless later
+  evidence proves otherwise;
+- GATs/HRTBs are not forced into the owned R2 core. R3 must compare a GAT-backed
+  Lens/lending-view design with a simpler lifetime-generic design.
+
+The R2 candidate passed the existing GitHub Qualification workflow on both Rust
+1.85.0 and stable. Its full evidence is recorded in
+[`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
+
+## Residual historical debt
+
+R2 intentionally does not reconstruct Lens, Gear, Cog, Tag, Vector, the broader
+operation framework, or inherited warning/formatting residue. `MatrixContext`
+remains temporarily as detached legacy scaffolding because historical operation
+traits still reference it; it is not Matrix storage and does not define Matrix
+shape or ownership semantics.
+
+## Current gate
+
+PR #7 is the complete R2 Teamlead review candidate. Do not begin R3 or merge R2
+until Teamlead/owner acceptance completes the gate. The owner retains the final
+merge action.
