@@ -5,7 +5,6 @@ mod tests;
 
 // use ndarray::{Array2, Data, DataMut, Shape};
 // use ndarray::{ArrayBase, Axis, Dim, Ix2, OwnedRepr};
-use serde::de::value::U32Deserializer;
 
 use std::any::{Any, TypeId};
 use std::fmt;
@@ -16,7 +15,6 @@ use std::error::Error;
 
 use crossbeam::atomic::AtomicCell;
 use crossbeam::queue::SegQueue;
-use dashmap::DashMap as HashMap;
 
 mod error;
 
