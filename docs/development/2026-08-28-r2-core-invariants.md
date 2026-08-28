@@ -211,7 +211,7 @@ cargo doc --locked --no-deps        PASS
 Observed toolchain:
 
 ```text
-rustc 1.90.0 (1159e78c4 2025-09-14)
+rustc 1.98.0 (88d9e12ae 2026-08-18)
 ```
 
 The workflow does not emit `cargo --version`; Cargo from that installed stable
