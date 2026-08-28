@@ -234,12 +234,52 @@ R4 coverage includes:
 - compile-fail read/mutate authority evidence;
 - runnable `examples/r4_transform.rs` composition workflow.
 
+The first published PR candidate ran 61 library unit tests, 9 integration tests
+(1 R2, 3 R3, 5 R4), and 5 doctests successfully in each CI lane. The R4 example
+compiled under `--all-targets`. The new read-Gear compile-fail doctest passed on
+both Rust 1.85.0 and stable.
+
 ## Qualification
 
-Final exact-head qualification is recorded after the ready-for-review PR and both
-GitHub Qualification lanes complete. Required commands are the existing locked
-Rust 1.85.0 and stable check/test/doctest/Clippy/doc lanes. The dependency graph,
-MSRV, edition, version, workflow, and lockfile are unchanged by R4.
+PR #9 (`R4: establish typed transformation composition`) is the review unit. Its
+first complete candidate head was
+`f83e6481d34ef10970773d8a60a3aa1ea22adac0`. GitHub Qualification run #13
+checked the clean PR merge candidate and completed both lanes successfully:
+
+```text
+Rust 1.85.0
+  rustc 1.85.0 (4d91de4e4 2025-02-17)
+  cargo check --locked --all-targets  PASS
+  cargo test --locked --all-targets   PASS
+  cargo test --locked --doc           PASS (5/5)
+  cargo clippy --locked --all-targets PASS
+  cargo doc --locked --no-deps        PASS
+
+stable
+  rustc 1.98.0 (88d9e12ae 2026-08-18)
+  cargo check --locked --all-targets  PASS
+  cargo test --locked --all-targets   PASS
+  cargo test --locked --doc           PASS (5/5)
+  cargo clippy --locked --all-targets PASS
+  cargo doc --locked --no-deps        PASS
+```
+
+The existing workflow invokes the Cargo binary belonging to each selected
+rustup toolchain but does not print `cargo --version`; only the exact observed
+rustc versions above are claimed here.
+
+Run #13 surfaced one avoidable R4-only warning: an unused `MutGear` import in the
+external integration test. Commit `92d9601e2846941e0283965e02a7c7205d6386ba`
+removed only that import. The inherited warning set remains outside R4. The
+final PR head is requalified by the same two-lane workflow after this evidence
+record is committed; that final external check is the exact-head merge gate and
+is reported in the Teamlead handoff rather than creating an endless
+self-referential documentation-SHA cycle.
+
+The dependency graph, MSRV, edition, version, workflow, and lockfile are unchanged
+by R4. `Cargo.lock` therefore remains byte-identical to the accepted baseline,
+with SHA-256
+`8abe052c6d793e87df19c1e6ade379caf3cad562eea693a946dc39c9e7180020`.
 
 ## Residual historical debt
 
@@ -249,8 +289,13 @@ Those remain outside the transformation contract.
 
 ## R4 exit result
 
-Implementation establishes the complete intended R4 architecture. Final exit is
-`COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING` only after final exact-head CI and
-mechanical evidence are green.
+The implementation establishes the complete intended R4 architecture. Once the
+final exact PR head has both Qualification lanes green, the candidate state is:
+
+```text
+R4: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+R4 PR: READY — NOT DRAFT
+R4 MERGE: NOT AUTHORIZED
+```
 
 Recommended next phase after merge: R5 — API ergonomics and learning surface.
