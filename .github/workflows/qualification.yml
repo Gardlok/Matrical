@@ -1,0 +1,44 @@
+name: Qualification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  qualify:
+    name: Rust ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - "1.85.0"
+          - stable
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.toolchain }}
+        run: |
+          rustup toolchain install "${{ matrix.toolchain }}" --profile minimal
+          rustup component add clippy --toolchain "${{ matrix.toolchain }}"
+          rustup override set "${{ matrix.toolchain }}"
+
+      - name: Check
+        run: cargo check --locked --all-targets
+
+      - name: Test
+        run: cargo test --locked --all-targets
+
+      - name: Doctest
+        run: cargo test --locked --doc
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets
+
+      - name: Documentation
+        run: cargo doc --locked --no-deps

@@ -8,7 +8,10 @@
 
 **Accepted R1-B merge:** `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`
 
-**Current phase:** R1-C local review candidate; next source slice blocked
+**Accepted R1-C merge:** `16ddcc878c9cc8c8701dbc01453e08cfccd00b54`
+
+**Current phase:** R1-D ready for Teamlead final review; R2 blocked only on
+R1-D merge acceptance
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -54,8 +57,10 @@ Current progression:
 
 - R1-A reconnaissance is owner-accepted and merged in PR #3;
 - R1-B dependency/MSRV reproducibility is owner-accepted and merged in PR #4;
-- R1-C source correctness is a local review candidate at the Teamlead gate;
-- the next source slice and later reconstruction remain blocked.
+- R1-C source correctness is owner-accepted and merged in PR #5;
+- R1-D runtime safety, qualification CI, and R1 closeout are ready for
+  Teamlead final review;
+- R2 remains blocked only on R1-D merge acceptance.
 
 Planned work:
 
@@ -66,8 +71,7 @@ Planned work:
   cleanup;
 - classify compiler errors, warnings, unused dependencies, empty modules,
   placeholders, panic paths, and unreachable APIs;
-- establish minimal CI for the accepted toolchain and one current stable lane
-  in a later bounded R1 slice;
+- establish minimal CI for the accepted toolchain and one current stable lane;
 - record whether 0.1.0 is treated as an unpublished prototype API.
 
 Exit gate:
@@ -76,6 +80,10 @@ Exit gate:
 - every failure is classified as product, dependency, toolchain, environment,
   or harness debt;
 - the owner accepts the compatibility and versioning position.
+
+**R1 exit criteria: satisfied by the qualified R1-D candidate.**
+
+Advancement into R2 remains blocked until R1-D is accepted and merged.
 
 ## R2 — Rebuild the core invariants
 
@@ -108,6 +116,8 @@ Planned work:
 - immutable rectangular Lens;
 - mutable rectangular Lens with exclusive borrowing;
 - row and column selectors;
+- explicitly evaluate whether GAT-backed lending views express Matrix/Lens
+  borrowing more clearly and safely than ordinary lifetime parameters;
 - iteration and conversion rules;
 - compile-time lifetime examples and negative API tests where useful.
 
@@ -191,7 +201,8 @@ Candidate work:
 
 - serialization and durable representation;
 - sparse or mapped storage;
-- backend/lending-view traits, potentially using GATs;
+- backend/lending-view traits, with GATs considered only when real
+  implementations justify the borrowing abstraction;
 - optional persistence research;
 - SurrealDB integration only with a concrete use case and isolated feature graph.
 
@@ -217,6 +228,29 @@ Planned work:
 
 The likely release line is `0.2.0`, but version bumping, tagging, and publication
 remain explicit owner decisions.
+
+## Advanced Rust policy
+
+GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
+goals. Use them only when they encode a real ownership, borrowing, lending, or
+extensibility contract more clearly and safely than a simpler API.
+
+R3 will explicitly evaluate GATs for Lens and lending views. A conceptual shape
+for that evaluation is:
+
+    trait LendingView {
+        type View<'a>
+        where
+            Self: 'a;
+
+        fn view<'a>(&'a self) -> Self::View<'a>;
+    }
+
+This is a design probe, not an R1-D implementation contract. R1-D introduces no
+GAT or HRTB API.
+
+Later backend abstractions may revisit GATs or HRTBs only when concrete
+implementations justify the additional type-system complexity.
 
 ## Cross-cutting requirements
 

@@ -112,7 +112,7 @@ impl ValidationStrategy<i32> for NestedValidationStrategy {
     }
 
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
     }
 }
 
@@ -520,6 +520,17 @@ impl<T: 'static> ValidationStrategyBuilder<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_nested_validation_strategy_as_any_identifies_strategy() {
+        let strategy = NestedValidationStrategy {
+            nested_validation: Validation::new(),
+        };
+
+        let erased = strategy.as_any();
+
+        assert!(erased.is::<NestedValidationStrategy>());
+    }
 
     #[test]
     fn test_param_from_context() {
