@@ -38,14 +38,18 @@ The accepted baseline is not a release-readiness claim. Version remains `0.1.0`.
 
 **R1-D:** OWNER ACCEPTED — MERGED IN PR #6
 
-**R2:** ACTIVE — checked dense Matrix core
+**R2:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
-**R3:** BLOCKED ON R2 TEAMLEAD/OWNER ACCEPTANCE
+**R3:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
 
 R2 reconstructs the first useful public core around `Shape`, `Index`, `Region`,
 `Matrix<T>`, and `MatricalError`. The dense Matrix storage direction accepted in
-R0/R1 is now being realized with private `ndarray::Array2<T>` storage rather
-than the historical queue-capacity placeholder.
+R0/R1 is now realized with private `ndarray::Array2<T>` storage rather than the
+historical queue-capacity placeholder.
+
+The code-complete R2 candidate passed the existing GitHub Qualification workflow
+on both Rust 1.85.0 and stable after one in-scope Clippy-only test-expression
+correction. The final PR remains an owner merge gate after Teamlead acceptance.
 
 R2 evidence is recorded in
 [`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
@@ -93,9 +97,8 @@ remains temporarily as detached legacy scaffolding because historical operation
 traits still reference it; it is not Matrix storage and does not define Matrix
 shape or ownership semantics.
 
-## Current authorized work
+## Current gate
 
-Complete the checked dense R2 core, its public API test, runnable example,
-rustdoc coverage, documentation, and two-lane Rust qualification. If the R2 exit
-gate passes, the candidate advances to Teamlead/owner acceptance; merge remains
-an owner action.
+R2 implementation and executable two-lane qualification are complete. PR #7 is
+the Teamlead review candidate. Do not begin R3 or merge R2 until Teamlead/owner
+acceptance completes the gate.

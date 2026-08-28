@@ -12,7 +12,7 @@
 
 **Accepted R1-D merge:** `059f148a99cfe2b5b881ada9af9acc286f584b6a`
 
-**Current phase:** R2 active; R1 complete and owner-accepted
+**Current phase:** R2 complete pending Teamlead/owner acceptance; R1 complete and owner-accepted
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -55,11 +55,11 @@ CI. Its exit criteria are satisfied.
 
 ## R2 — Rebuild the core invariants
 
-**Status:** ACTIVE
+**Status:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
 **Goal:** provide a small useful Matrix with typed failures.
 
-Planned/active work:
+Delivered:
 
 - public `MatricalError` and `std::error::Error` contract;
 - checked `Shape`, `Index`, and half-open rectangular `Region` types;
@@ -73,17 +73,18 @@ Planned/active work:
 - explicit validity-mask decision: missingness is not intrinsic Matrix storage;
 - removal of queue-backed Matrix storage while retaining detached
   `MatrixContext` only as required historical scaffolding;
-- explicit unsafe/Miri evaluation for the owned core.
+- explicit unsafe/Miri evaluation for the owned core;
+- successful existing-CI qualification on Rust 1.85.0 and stable.
 
 Exit gate:
 
-- no ordinary invalid shape, index, or region causes a panic;
-- zero-sized and overflow boundaries are specified and tested;
-- the public core can be consumed through intended crate-root exports;
-- Matrix no longer uses queue capacity as storage or shape;
-- Miri/deeper checking is evaluated against the actual unsafe/aliasing surface.
-
-If all criteria pass, record:
+- no ordinary invalid shape, index, or region causes a panic: PASS;
+- zero-sized and overflow boundaries are specified and tested: PASS;
+- the public core can be consumed through intended crate-root exports: PASS;
+- Matrix no longer uses queue capacity as storage or shape: PASS;
+- Miri/deeper checking is evaluated against the actual unsafe/aliasing surface:
+  PASS — no unsafe/aliasing machinery is introduced in the owned R2 core; Miri
+  is deferred for reconsideration with mutable borrowed Lens semantics in R3.
 
 ```text
 R2: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
@@ -91,6 +92,8 @@ Next phase after merge: R3 — make Lens real
 ```
 
 ## R3 — Make Lens real
+
+**Status:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
 
 **Goal:** deliver safe, borrowing views over Matrix data.
 

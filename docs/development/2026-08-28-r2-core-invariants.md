@@ -2,7 +2,7 @@
 
 **Implementation:** 2026-08-28
 
-**Status:** R2 candidate in qualification; Teamlead/owner acceptance required
+**Status:** R2 COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
 ## Exact starting identity
 
@@ -21,6 +21,12 @@ Implementation branch:
 
 ```text
 rehab/r2-core-invariants
+```
+
+Review PR:
+
+```text
+#7 — R2: establish checked dense Matrix core
 ```
 
 ## Historical problem
@@ -158,7 +164,7 @@ Matrix construction, immutable/mutable Index access, Region use, deterministic
 iteration, and `MatricalError` handling from an external-crate perspective.
 
 `examples/r2_core_matrix.rs` is a runnable public-API example using normal
-`Result` propagation.
+`Result` propagation and is compiled by the all-targets gate.
 
 The public Matrix rustdoc contains a compiled construction/access/iteration
 example, so R2 no longer has zero core documentation examples.
@@ -166,17 +172,70 @@ example, so R2 no longer has zero core documentation examples.
 ## Qualification environment
 
 The developer execution sandbox used for this session does not contain Rust and
-has no outbound network access, so local Cargo/rustfmt execution is not
-available in this environment. This is an execution-environment limitation, not
-a repository finding.
+has no outbound network access, so local Cargo/rustfmt execution was not
+available. This is an execution-environment limitation, not a repository
+finding. Mechanical source/scope checks were performed directly on the
+reconstructed files, and the repository's existing GitHub Qualification
+workflow supplied the executable Rust gates for both required lanes.
 
-Mechanical validation is performed locally on the reconstructed files. The
-repository's existing GitHub qualification workflow is used as the executable
-Rust gate for both Rust 1.85.0 and current stable. CI runs the required locked
-check, all-target tests, doctests, Clippy, and documentation build on both lanes.
+The code-complete candidate at
+`d679a045ab6eb0d8a07262c9342a789f0aafc1f3` passed workflow run
+`33202151658` on both lanes.
 
-Final CI result and exact stable toolchain evidence are recorded after PR
-publication/qualification.
+### Rust 1.85.0
+
+Observed toolchain:
+
+```text
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+```
+
+The workflow does not emit `cargo --version`; Cargo from the installed 1.85.0
+toolchain successfully executed every locked command.
+
+Results:
+
+```text
+cargo check --locked --all-targets  PASS
+cargo test --locked --all-targets   PASS
+  library tests                     51 passed, 0 failed
+  external integration test          1 passed, 0 failed
+  example target                     compiled; 0 tests
+cargo test --locked --doc           PASS — 1 passed, 0 failed
+cargo clippy --locked --all-targets PASS
+cargo doc --locked --no-deps        PASS
+```
+
+### Stable
+
+Observed toolchain:
+
+```text
+rustc 1.90.0 (1159e78c4 2025-09-14)
+```
+
+The workflow does not emit `cargo --version`; Cargo from that installed stable
+toolchain successfully executed every locked command.
+
+Results:
+
+```text
+cargo check --locked --all-targets  PASS
+cargo test --locked --all-targets   PASS
+cargo test --locked --doc           PASS
+cargo clippy --locked --all-targets PASS
+cargo doc --locked --no-deps        PASS
+```
+
+The inherited warning surface remains visible and is intentionally not converted
+into an unrelated cleanup campaign. No avoidable new R2-core Clippy failure
+remains. The first CI attempt exposed one Clippy-only `reversed_empty_ranges`
+diagnostic in the boundary test's deliberate literal reversed range syntax; the
+test now constructs those invalid bounds explicitly, preserving the same Region
+contract while passing Clippy.
+
+After this evidence-only documentation closeout, the same two-lane workflow must
+remain green on the final PR head before Teamlead handoff.
 
 ## Reproducibility
 
@@ -215,18 +274,21 @@ are not exposed as Matrix shape or storage state.
 
 ## R2 exit evaluation
 
-Candidate source satisfies the intended R2 contract:
+The R2 exit contract is satisfied by the code-complete candidate and its
+successful two-lane executable qualification:
 
-- ordinary invalid shape, index, region, and length input are typed failures;
-- zero-sized and overflow boundaries are explicit and tested;
-- a downstream-style public API test and runnable example are present;
-- queue-backed placeholder storage has been removed from Matrix;
-- the new core contains no unsafe/aliasing mechanism requiring Miri in R2.
+- ordinary invalid shape, index, region, and length input are typed failures:
+  PASS;
+- zero-sized and overflow boundaries are explicit and tested: PASS;
+- downstream-style public API test, runnable example, and compiled rustdoc are
+  present: PASS;
+- queue-backed placeholder storage has been removed from Matrix: PASS;
+- the new core contains no unsafe/aliasing mechanism requiring Miri in R2: PASS.
 
-The final overall R2 exit result is contingent only on successful two-lane
-GitHub executable qualification of the complete PR candidate.
+No technical R2 blocker remains. Final acceptance and merge remain Teamlead and
+owner gates.
 
-If CI passes, the recommended state is:
+Recommended state:
 
 ```text
 R2: COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
