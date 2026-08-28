@@ -18,7 +18,8 @@ use crossbeam::queue::SegQueue;
 
 mod error;
 
-use error::{AtomicBoolError, MatricalError, MatricalErrorType};
+use error::AtomicBoolError;
+pub use error::{MatricalError, MatricalErrorType};
 
 pub mod operations;
 pub use operations::*;
@@ -36,9 +37,6 @@ pub use schematics::element::*;
 pub use schematics::matrix::*;
 pub use schematics::vector::*;
 
-
-
-
 // Defines a set of methods that can be used to perform various operations on a given data set.
 //
 // pub trait Strategy {
@@ -46,10 +44,6 @@ pub use schematics::vector::*;
 //     fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
 //     fn result(&self) -> Result<(), String>;
 // }
-
-
-
-
 
 // pub trait FunctorHandler<T, F> where F: Fn() -> T {
 //     fn execute(&self, context: &MatrixContext) -> Result<T, MatricalError>;
