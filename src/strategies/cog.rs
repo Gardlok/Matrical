@@ -1,495 +1,152 @@
+use crate::MatricalError;
 
-use crate::error::MatricalError;
-use ndarray::Array2;
-use std::marker::PhantomData;
-use std::sync::Arc;
-use std::any::Any;
-
-
-
-
-// The Cog struct
-pub struct Cog {
-    lens: Option<Arc<dyn Fn()>>,
-    operation: Option<Box<dyn CogOperation>>,
-    strategy: Option<Box<dyn CogStrategy>>,
-    context: Option<Box<CogContext>>,
+/// Validation contract for typed Gear context and policy.
+///
+/// Context validation is deliberately small and static: callers provide a
+/// concrete Rust type, and execution validates that type before a Gear receives
+/// it. No registry, string lookup, or `Any` downcast is involved.
+pub trait ValidateCog {
+    fn validate(&self) -> Result<(), MatricalError>;
 }
 
-impl Cog {
-    pub fn new(
-        lens: Option<Arc<dyn Fn()>>,
-        operation: Option<Box<dyn CogOperation>>,
-        strategy: Option<Box<dyn CogStrategy>>,
-        context: Option<Box<CogContext>>,
-    ) -> Self {
-        Self {
-            lens,
-            operation,
-            strategy,
-            context,
-        }
-    }
-}
-
-// Cog Operation
-pub trait CogOperation: Send + Sync {
-    fn apply(&self, context: &CogContext) -> Result<(), MatricalError>;
-}
-
-pub struct CogOperationImpl {
-    top_left: (usize, usize),
-    bottom_right: (usize, usize),
-}
-
-impl CogOperationImpl {
-    pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-        Self {
-            top_left,
-            bottom_right,
-        }
-    }
-}
-
-impl CogOperation for CogOperationImpl {
-    fn apply(&self, context: &CogContext) -> Result<(), MatricalError> {
-        // Check if the coordinates are within the matrix dimensions
-        if self.top_left.0 >= context.data.dim().0
-            || self.top_left.1 >= context.data.dim().1
-            || self.bottom_right.0 >= context.data.dim().0
-            || self.bottom_right.1 >= context.data.dim().1
-        {
-            return Err(MatricalError::IndexOutOfBounds);
-        }
-
-        // Apply the cog operation logic here
-        // ...
-
+impl ValidateCog for () {
+    fn validate(&self) -> Result<(), MatricalError> {
         Ok(())
     }
 }
 
-// Cog Strategy
-pub trait CogStrategy: Send + Sync {
-    fn execute(
-        &self,
-        cog: &Cog,
-        index: Option<(usize, usize)>,
-        other: Option<bool>,
-    ) -> Result<(), MatricalError>;
+/// A typed optional context container for Gear execution.
+///
+/// `Cog<C>` preserves the concrete Rust type `C`. A missing required context is
+/// returned as [`MatricalError::InvalidContext`] by [`Cog::context`] and by the
+/// central Gear execution functions.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Cog<C> {
+    context: Option<C>,
 }
 
-pub struct CogStrategyImpl {
-    top_left: (usize, usize),
-    bottom_right: (usize, usize),
-}
-
-impl CogStrategyImpl {
-    pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
+impl<C> Cog<C> {
+    /// Creates a Cog containing required context.
+    pub const fn new(context: C) -> Self {
         Self {
-            top_left,
-            bottom_right,
+            context: Some(context),
+        }
+    }
+
+    /// Creates a Cog with no context.
+    ///
+    /// Passing this Cog to a Gear that requires `C` produces
+    /// [`MatricalError::InvalidContext`].
+    pub const fn empty() -> Self {
+        Self { context: None }
+    }
+
+    /// Creates a Cog from an already optional context value.
+    pub const fn from_option(context: Option<C>) -> Self {
+        Self { context }
+    }
+
+    /// Returns whether context is present.
+    pub const fn is_present(&self) -> bool {
+        self.context.is_some()
+    }
+
+    /// Borrows the typed context or returns a typed missing-context failure.
+    pub fn context(&self) -> Result<&C, MatricalError> {
+        self.context
+            .as_ref()
+            .ok_or(MatricalError::InvalidContext)
+    }
+
+    /// Consumes the Cog and returns its optional typed context.
+    pub fn into_option(self) -> Option<C> {
+        self.context
+    }
+}
+
+/// A finite scalar policy used by built-in scalar transformation Gears.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ScalarPolicy {
+    value: f64,
+}
+
+impl ScalarPolicy {
+    pub const fn new(value: f64) -> Self {
+        Self { value }
+    }
+
+    pub const fn value(self) -> f64 {
+        self.value
+    }
+}
+
+impl ValidateCog for ScalarPolicy {
+    fn validate(&self) -> Result<(), MatricalError> {
+        if self.value.is_finite() {
+            Ok(())
+        } else {
+            Err(MatricalError::InvalidValue)
         }
     }
 }
 
-impl CogStrategy for CogStrategyImpl {
-    fn execute(
-        &self,
-        cog: &Cog,
-        index: Option<(usize, usize)>,
-        other: Option<bool>,
-    ) -> Result<(), MatricalError> {
-        let context = cog
-            .context
-            .as_deref()
-            .ok_or(MatricalError::InvalidContext)?;
+/// Inclusive lower/upper bounds used by [`crate::ClampGear`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ClampPolicy {
+    minimum: f64,
+    maximum: f64,
+}
 
-        // Check if the coordinates are within the matrix dimensions
-        if self.top_left.0 >= context.data.dim().0
-            || self.top_left.1 >= context.data.dim().1
-            || self.bottom_right.0 >= context.data.dim().0
-            || self.bottom_right.1 >= context.data.dim().1
+impl ClampPolicy {
+    pub const fn new(minimum: f64, maximum: f64) -> Self {
+        Self { minimum, maximum }
+    }
+
+    pub const fn minimum(self) -> f64 {
+        self.minimum
+    }
+
+    pub const fn maximum(self) -> f64 {
+        self.maximum
+    }
+}
+
+impl ValidateCog for ClampPolicy {
+    fn validate(&self) -> Result<(), MatricalError> {
+        if !self.minimum.is_finite()
+            || !self.maximum.is_finite()
+            || self.minimum > self.maximum
         {
-            return Err(MatricalError::IndexOutOfBounds);
+            return Err(MatricalError::InvalidValue);
         }
-
-        // Execute the cog strategy logic here
-        // ...
 
         Ok(())
     }
-}
-
-// Cog Context
-pub struct CogContext {
-    top_left: (usize, usize),
-    bottom_right: (usize, usize),
-    data: Array2<f64>,
-}
-
-impl CogContext {
-    pub fn new(top_left: (usize, usize), bottom_right: (usize, usize), data: Array2<f64>) -> Self {
-        Self {
-            top_left,
-            bottom_right,
-            data,
-        }
-    }
-}
-
-// Cog Builder
-pub struct CogBuilder {
-    top_left: (usize, usize),
-    bottom_right: (usize, usize),
-    data: Option<Array2<f64>>,
-}
-
-impl CogBuilder {
-    pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-        Self {
-            top_left,
-            bottom_right,
-            data: None,
-        }
-    }
-
-    pub fn data(mut self, data: Array2<f64>) -> Self {
-        self.data = Some(data);
-        self
-    }
-
-    pub fn build(self) -> Cog {
-        let context = self
-            .data
-            .map(|data| Box::new(CogContext::new(self.top_left, self.bottom_right, data)) as Box<CogContext>);
-
-        Cog::new(
-            None,
-            Some(Box::new(CogOperationImpl::new(self.top_left, self.bottom_right))),
-            Some(Box::new(CogStrategyImpl::new(self.top_left, self.bottom_right))),
-            context,
-        )
-    }
-}
-
-
-fn main() {
-    let builder = CogBuilder::new((0, 0), (1, 1)).data(Array2::ones((2, 2)));
-    let cog = builder.build();
-    let context = cog.context.unwrap();
-
-    let operation = cog.operation.unwrap();
-    operation.apply(&context).unwrap();
-
-    // let strategy = cog.strategy.unwrap().clone();
-    // strategy.execute(cog, None, None).unwrap();
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{ClampPolicy, Cog, ScalarPolicy, ValidateCog};
+    use crate::MatricalError;
 
     #[test]
-    fn cog_strategy_without_context_returns_invalid_context() {
-        let cog = CogBuilder::new((0, 0), (1, 1)).build();
-        let strategy = CogStrategyImpl::new((0, 0), (1, 1));
+    fn typed_context_is_retrievable_without_downcast() {
+        let cog = Cog::new(ScalarPolicy::new(2.5));
 
-        let result = strategy.execute(&cog, None, None);
-
-        assert!(matches!(result, Err(MatricalError::InvalidContext)));
+        assert_eq!(cog.context().unwrap().value(), 2.5);
     }
 
     #[test]
-    fn cog_operation_out_of_bounds_returns_index_out_of_bounds() {
-        let context = CogContext::new((0, 0), (1, 1), Array2::zeros((2, 2)));
-        let operation = CogOperationImpl::new((0, 0), (2, 1));
+    fn missing_context_is_typed_failure() {
+        let cog = Cog::<ScalarPolicy>::empty();
 
-        let result = operation.apply(&context);
-
-        assert!(matches!(
-            result,
-            Err(MatricalError::IndexOutOfBounds)
-        ));
+        assert_eq!(cog.context(), Err(MatricalError::InvalidContext));
     }
 
     #[test]
-    fn cog_strategy_out_of_bounds_returns_index_out_of_bounds() {
-        let cog = CogBuilder::new((0, 0), (1, 1))
-            .data(Array2::zeros((2, 2)))
-            .build();
-        let strategy = CogStrategyImpl::new((0, 0), (2, 1));
+    fn invalid_context_is_rejected_by_validation() {
+        let policy = ClampPolicy::new(5.0, 1.0);
 
-        let result = strategy.execute(&cog, None, None);
-
-        assert!(matches!(
-            result,
-            Err(MatricalError::IndexOutOfBounds)
-        ));
-    }
-
-    #[test]
-    fn valid_cog_paths_remain_ok() {
-        let context = CogContext::new((0, 0), (1, 1), Array2::ones((2, 2)));
-        let operation = CogOperationImpl::new((0, 0), (1, 1));
-
-        assert!(operation.apply(&context).is_ok());
-
-        let cog = CogBuilder::new((0, 0), (1, 1))
-            .data(Array2::ones((2, 2)))
-            .build();
-        let strategy = CogStrategyImpl::new((0, 0), (1, 1));
-
-        assert!(strategy.execute(&cog, None, None).is_ok());
+        assert_eq!(policy.validate(), Err(MatricalError::InvalidValue));
     }
 }
-
-// The Cog struct
-// 
-/*
- * An Cog, in Matrical, is a piece of metadata that can be associated with a matrix or a submatrix.
- * It can store any kind of information, such as tags, labels, or significant data about the matrix.
- * Cogs can be used to provide additional context for operations performed on the matrix.
- * When a Gear operates on a matrix, it can use the information from any associated Cogs to
- * modify its operation. This allows for operations to be tailored based on the specific Cogs
- * of matrix elements. Cogs can be applied to the entire matrix or to specific submatrices.
- */
-// pub struct Cog { _attri: PhantomData<Arc<dyn Fn()>> }
-
-
-// // The Cog (Attribute) struct
-// #[derive(Debug, Clone)]
-// pub struct Cog {
-
-//     // For when a lens is required
-//     lens: Option<Arc<dyn Fn()>>,
-
-//     // The CogOperation to be applied to the Cog
-//     operation: Option<Box<dyn CogOperation>>,
-
-//     // The CogStrategy to be applied to the Cog
-//     strategy: Option<Box<dyn Any + Send + Sync + CogStrategy>>,
-
-//     // The CogContext to be applied to the Cog
-//     context: Option<Box<CogContext>>,
-   
-// }
-
-// impl Cog {
-//     // Create a new Cog with the given coordinates and data
-//     pub fn new(
-//         lens: Option<Arc<dyn Fn()>>,
-//         operation: Option<Box<dyn CogOperation>>,
-//         strategy: Option<Box<dyn CogStrategy>>,
-//         context: Option<Box<CogContext>>,
-//     ) -> Self {
-//         Self {
-//             lens,
-//             operation,
-//             strategy,
-//             context,
-//         }
-//     }
-// }
-        
-// // Cog Operation
-// // 
-// pub trait CogOperation {
-//     // Apply the CogOperation to the given Cog
-//     fn apply(&self, context: &CogContext) -> Result<(), MatricalError>;
-// }
-
-// // Cog Strategy
-// //
-// // The CogStrategy trait is used to provide context for CogOperations.
-// // Passing along the CogStrategy to the CogOperation allows the CogOperation
-// // to access the CogStrategy's context and perform operations on the Cog.
-// //  
-// pub trait CogStrategy {
-//     // Execute the CogStrategy on the given Cog
-//     fn execute(
-//         &self,
-//         cog: &Cog,
-//         // the index of the element in the matrix
-//         index: Option<(usize, usize)>,
-//         other: Option<bool>, // Placeholder TODO: What is this?
-//     ) -> Result<(), MatricalError>;
-// }
-// // The CogContext struct
-// //
-// // The CogContext struct is used to provide Metadata for CogOperations.
-// // It contains the dimensions coordinates of the sub-matrix
-// // where the Cog is applied.
-// //
-// #[derive(Debug, Clone)]
-// pub struct CogContext {
-//     // The top left and bottom right coordinates of the sub-matrix
-//     // where the Cog is applied
-//     top_left: (usize, usize),
-//     bottom_right: (usize, usize),
-//     // The data contained in the Cog
-//     data: Option<Array2<f64>>,
-//     // The lens of the Cog if it exists
-//     lens: Option<Arc<dyn Fn()>>,
-    
-// }
-
-// impl CogContext {
-//     // Create a new CogContext with the given coordinates
-//     pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-//         Self {
-//             top_left,
-//             bottom_right,
-//             lens: None,
-//             data: None,
-//         }
-//     }
-// }
-
-// // The CogOperation Implementation struct 
-// // 
-// #[derive(Debug, Clone)]
-// pub struct CogOperationImpl {
-//     // The top left and bottom right coordinates of the sub-matrix
-//     top_left: (usize, usize),
-//     bottom_right: (usize, usize),
-// }
-// impl CogOperationImpl {
-//     // Create a new CogOperation with the given coordinates
-//     pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-//         Self {
-//             top_left,
-//             bottom_right,
-//         }
-//     }
-// }
-
-// impl CogOperation for CogOperationImpl {
-//     fn apply(&self, context: &CogContext) -> Result<(), MatricalError> {
-//         // Check if the coordinates are within the matrix dimensions
-//         // TODO: Check if the coordinates are within the matrix dimensions
-//         //
-//         if self.top_left.0 >= context.top_left.0
-//             || self.top_left.1 >= context.top_left.1
-//             || self.bottom_right.0 >= context.bottom_right.0
-//             || self.bottom_right.1 >= context.bottom_right.1
-//         {
-//             return Err(MatricalError::IndexOutOfBounds);
-//         }
-
-//         Ok(())
-//     }
-// }
-
-// impl CogStrategy for CogOperationImpl {
-//     fn execute(
-//         &self,
-//         cog: &Cog,
-//         // the index of the element in the matrix
-//         _index: Option<(usize, usize)>,
-//         _other: Option<bool>, // Placeholder TODO: What is this?
-//     ) -> Result<(), MatricalError> {
-//         // Check if the coordinates are within the matrix dimensions
-//         if self.top_left.0 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().0
-//             || self.top_left.1 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().1
-//             || self.bottom_right.0 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().0
-//             || self.bottom_right.1 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().1
-//         {
-//             return Err(MatricalError::IndexOutOfBounds);
-//         }
-
-//         Ok(())
-//     }
-// }
-
-
-// // The CogStrategy struct
-// #[derive(Debug, Clone)]
-// pub struct CogStrategyImpl {
-//     // The top left and bottom right coordinates of the sub-matrix
-//     top_left: (usize, usize),
-//     bottom_right: (usize, usize),
-// }
-
-// impl CogStrategyImpl {
-//     // Create a new CogStrategy with the given coordinates
-//     pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-//         Self {
-//             top_left,
-//             bottom_right,
-//         }
-//     }
-// }
-
-// impl CogStrategy for CogStrategyImpl {
-//     fn execute(
-//         &self,
-//         cog: &Cog,
-//         _index: Option<(usize, usize)>,
-//         _other: Option<bool>, // Placeholder TODO: What is this?
-//     ) -> Result<(), MatricalError> {
-//         // Check if the coordinates are within the matrix dimensions
-//         if self.top_left.0 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().0
-//             || self.top_left.1 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().1
-//             || self.bottom_right.0 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().0
-//             || self.bottom_right.1 >= cog.context.as_ref().unwrap().data.as_ref().unwrap().dim().1
-//         {
-//             return Err(MatricalError::IndexOutOfBounds);
-//         }
-
-//         Ok(())
-//     }
-// }
-
-
-
-// // The CogBuilder struct
-// #[derive(Debug, Clone)]
-// pub struct CogBuilder {
-//     // The top left and bottom right coordinates of the sub-matrix
-//     // where the Cog is applied 
-//     // TODO: Should this be a reference to the Cog* struct?
-//     top_left: (usize, usize),
-//     bottom_right: (usize, usize),
-//     // The data contained in the Cog 
-//     // TODO: Should this be a reference to the Cog* struct?
-//     data: Array2<f64>,
-// }
-
-// impl CogBuilder {
-//     // Create a new CogBuilder with the given coordinates
-//     pub fn new(top_left: (usize, usize), bottom_right: (usize, usize)) -> Self {
-//         Self {
-//             top_left,
-//             bottom_right,
-//             data: Array2::zeros((0, 0)),
-//         }
-//     }
-
-//     // Set the data of the CogBuilder
-//     // TODO: Should this be a reference to the Cog* struct?
-//     pub fn data(mut self, data: Array2<f64>) -> Self {
-//         self.data = data;
-//         self
-//     }
-
-//     // Build the Cog from the CogBuilder 
-//     // TODO: Should this be a reference to the Cog* struct?
-//     pub fn build(self) -> Cog {
-//         Cog::new(
-//             None,
-//             Some(Box::new(CogOperationImpl::new(
-//                 self.top_left,
-//                 self.bottom_right,
-//             ))),
-//             Some(Box::new(CogStrategyImpl::new(
-//                 self.top_left,
-//                 self.bottom_right,
-//             ))),
-//             Some(Box::new(CogContext::new(
-//                 self.top_left,
-//                 self.bottom_right,
-//             ))),
-//         )
-//     }
-// }
