@@ -7,14 +7,13 @@
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     2f76a87e171a32a58a6d7244fdeb1b8794fc043a
-tree       947684bc73841fb0842d5664e168e28bc8d3b05b
+commit     059f148a99cfe2b5b881ada9af9acc286f584b6a
+tree       0ad0e91d983912f743dc16972eb11a5a79afb286
 version    0.1.0
 ```
 
-Commit `2f76a87e171a32a58a6d7244fdeb1b8794fc043a` merged PR #7 and
-owner-accepted R2. PR #6 owner-accepted R1-D at
-`059f148a99cfe2b5b881ada9af9acc286f584b6a`; PR #5 owner-accepted R1-C at
+Commit `059f148a99cfe2b5b881ada9af9acc286f584b6a` merged PR #6 and
+owner-accepted R1-D. PR #5 owner-accepted R1-C at
 `16ddcc878c9cc8c8701dbc01453e08cfccd00b54`; PR #4 owner-accepted R1-B at
 `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`; PR #3 owner-accepted R1-A at
 `1c5ec09346f249496f1bb2e72095e073b348568a` with tree
@@ -24,7 +23,7 @@ at `dea2adb83404743558ae9da7a3d94aefdad4b903` after PR #1 established it at
 baseline remains `6deb812e11a519404fec90408bf95651764cd2f8` with tree
 `9d643f5066c8e99ad111e5b0fe48265773a70092`.
 
-The accepted baseline is not a claim that the public library is release-ready.
+Neither baseline is a claim that the public library is release-ready.
 
 ## Active campaign
 
@@ -44,9 +43,9 @@ The accepted baseline is not a claim that the public library is release-ready.
 
 **R1:** COMPLETE — OWNER ACCEPTED
 
-**R2:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
+**R2:** COMPLETE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
-**R3:** ACTIVE
+**R3:** BLOCKED ONLY ON R2 TEAMLEAD/OWNER ACCEPTANCE
 
 R1-A was dispatched from its exact accepted commit and tree. Its reconnaissance
 report is
@@ -86,10 +85,10 @@ and qualified them rather than retroactively changing the reconnaissance result.
 ## Baseline findings that motivate rehabilitation
 
 - the historical `Matrix<V>` was a queue-capacity shell rather than a usable
-  two-dimensional abstraction; R2 replaced that Matrix storage model with a
+  two-dimensional abstraction; R2 replaces that Matrix storage model with a
   checked dense `ndarray::Array2<T>` core;
-- region mutation existed directly over `ndarray::Array2<f64>` in historical
-  Gear code, but that code is not the accepted Matrix or R3 Lens contract;
+- region mutation exists directly over `ndarray::Array2<f64>` in historical
+  Gear code, but that code is not the R2 Matrix or future Lens contract;
 - some public validation paths return success without executing strategies;
 - `MatricalError` debug formatting was recursively defined until R1-C
   replaced the recursive formatter with derived `Debug`;
@@ -98,12 +97,11 @@ and qualified them rather than retroactively changing the reconnaissance result.
 - the Vector implementation has trait bounds not implemented by Element;
 - several operation modules and the top-level matrix tests are empty or
   commented placeholders;
-- concurrency, parallelism, persistence, and broader optimization aspirations
-  remain unsupported until later contracts and evidence justify them.
+- concurrency, parallelism, persistence, and zero-copy aspirations are not yet
+  supported by defined public contracts or evidence.
 
-These findings remain historical inputs to rehabilitation. R3 replaces only the
-unfinished historical Lens meaning and does not silently declare the remaining
-prototype scaffolding complete.
+These findings remain historical inputs to rehabilitation. R2 repairs the Matrix
+core without silently declaring the remaining prototype scaffolding complete.
 
 ## Downstream design input
 
@@ -137,12 +135,12 @@ added focused regressions, and established two-lane qualification CI for Rust
 1.85.0 and current stable. Its evidence remains preserved in
 [`development/2026-08-28-r1d-runtime-safety-ci-closeout.md`](development/2026-08-28-r1d-runtime-safety-ci-closeout.md).
 
-PR #6 merged the owner-accepted R1-D result. R1 exit criteria are satisfied and
-R1 is complete.
+PR #6 merged the owner-accepted R1-D result at the exact current baseline above.
+R1 exit criteria are satisfied and R1 is complete.
 
 ## R2 core result
 
-R2 established the first checked public core around `Shape`, `Index`, `Region`,
+R2 establishes the first checked public core around `Shape`, `Index`, `Region`,
 `Matrix<T>`, and `MatricalError`:
 
 - zero-sized shapes (`0 x 0`, `0 x N`, `N x 0`) are valid;
@@ -157,46 +155,23 @@ R2 established the first checked public core around `Shape`, `Index`, `Region`,
 - a validity/missingness mask is not intrinsic Matrix storage; it belongs in an
   explicit paired structure, wrapper, or downstream domain type unless later
   evidence proves otherwise;
-- GATs/HRTBs were not forced into the owned R2 core. R3 compares a GAT-backed
-  lending-view design with a concrete lifetime-generic design.
+- GATs/HRTBs are not forced into the owned R2 core. R3 must compare a GAT-backed
+  Lens/lending-view design with a simpler lifetime-generic design.
 
-PR #7 merged the owner-accepted R2 result at the exact current baseline above.
-The preserved R2 evidence remains in
+The R2 candidate passed the existing GitHub Qualification workflow on both Rust
+1.85.0 and stable. Its full evidence is recorded in
 [`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
-
-## R3 borrowing-view candidate
-
-R3 replaces the historical validation/strategy Lens prototype with concrete
-`Lens<'a, T>` and `LensMut<'a, T>` borrowing views. The current implementation
-keeps ndarray private by borrowing the checked parent `Matrix<T>` directly:
-immutable Lens stores `&Matrix<T>` and mutable Lens stores `&mut Matrix<T>`.
-This makes Matrix lifetime and mutable exclusivity visible to the Rust borrow
-checker without project-authored unsafe code or runtime overlap tracking.
-
-The selected `Region` remains expressed in parent coordinates. Public `Index`
-access through either Lens is Lens-local, so local `(0, 0)` maps to the Region's
-top-left parent coordinate. Row/column selectors return the same rectangular
-Lens types, including `1 x 0` rows for in-range rows of `N x 0` matrices and
-`0 x 1` columns for in-range columns of `0 x N` matrices.
-
-Creation, checked access, row/column selection, and iteration are borrowing
-operations and do not intentionally allocate. `to_row_major()` is the explicit
-allocating `T: Clone` conversion. Logical iteration is row-major within the
-selected rectangle and does not promise physical contiguity.
-
-The detailed R3 design and qualification record is
-[`development/2026-08-28-r3-safe-lens-views.md`](development/2026-08-28-r3-safe-lens-views.md).
 
 ## Residual historical debt
 
-R3 intentionally does not reconstruct Gear, Cog, Tag, Vector, the broader
+R2 intentionally does not reconstruct Lens, Gear, Cog, Tag, Vector, the broader
 operation framework, or inherited warning/formatting residue. `MatrixContext`
-remains detached legacy scaffolding because historical operation traits still
-reference it; it is not Matrix storage and does not define Matrix shape,
-ownership, or Lens semantics.
+remains temporarily as detached legacy scaffolding because historical operation
+traits still reference it; it is not Matrix storage and does not define Matrix
+shape or ownership semantics.
 
 ## Current gate
 
-R3 development is active on `rehab/r3-safe-lens-views` from accepted baseline
-`2f76a87e171a32a58a6d7244fdeb1b8794fc043a`. R4 remains blocked until the R3
-candidate completes qualification and receives Teamlead/owner acceptance.
+PR #7 is the complete R2 Teamlead review candidate. Do not begin R3 or merge R2
+until Teamlead/owner acceptance completes the gate. The owner retains the final
+merge action.
