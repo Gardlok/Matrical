@@ -16,10 +16,12 @@
 
 **Accepted R3 merge:** `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`
 
-**Current phase:** R4 active
+**Accepted R4 merge:** `6dc0320d1857d1c4fafd538fbf75ae80566887cc`
 
-This roadmap is ordered. Later slices may be researched early, but implementation
-should not bypass an earlier invariant or acceptance gate.
+**Current phase:** R5 active
+
+This roadmap is ordered. Later work may be researched early, but implementation
+must not bypass an earlier invariant or acceptance gate.
 
 ## Campaign states
 
@@ -36,291 +38,159 @@ should not bypass an earlier invariant or acceptance gate.
 
 **Status:** COMPLETE — OWNER ACCEPTED
 
-**Goal:** replace stale project claims with truthful documentation and a durable
-rehabilitation workflow.
-
-Deliverables:
-
-- current README and contribution guide;
-- architecture vision and nomenclature contract;
-- slice-based roadmap;
-- local testing and evidence procedure;
-- Teamlead prompt, handoff, review, and acceptance protocol;
-- active-development record tied to the exact historical baseline.
-
-Exit gate:
-
-- documentation is internally consistent;
-- links and diff hygiene pass;
-- no executable claim is added;
-- accepted owner decisions and remaining proposals are distinguished explicitly.
+Established truthful documentation, nomenclature, rehabilitation workflow,
+testing/evidence procedure, and review gates.
 
 ## R1 — Reproduce and classify the historical baseline
 
 **Status:** COMPLETE — OWNER ACCEPTED
 
-**Goal:** establish what builds, what fails, and which dependencies or APIs are
-historical residue.
-
-Completed progression:
-
-- R1-A reconnaissance: owner-accepted and merged in PR #3;
-- R1-B dependency/MSRV reproducibility: owner-accepted and merged in PR #4;
-- R1-C source correctness: owner-accepted and merged in PR #5;
-- R1-D runtime safety, qualification CI, and R1 closeout: owner-accepted and
-  merged in PR #6.
-
-R1 work established the Rust 1.85.0 MSRV, committed `Cargo.lock` policy,
-compile/test/rustdoc/Clippy classification, source-correctness repairs,
-runtime-safety repairs, two-lane qualification CI, and prototype compatibility
-position without broad historical cleanup.
-
-Exit gate:
-
-- the baseline result is reproducible from a clean checkout: PASS;
-- every blocking failure was classified and repaired or retained as explicit
-  non-blocking historical debt: PASS;
-- the owner accepted the compatibility and versioning position: PASS.
-
-**R1 exit criteria: satisfied.**
+R1-A through R1-D established the reproducible dependency graph, Rust 1.85.0
+MSRV, committed lockfile policy, source-correctness repairs, runtime-safety
+repairs, and two-lane qualification CI.
 
 ## R2 — Rebuild the core invariants
 
 **Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 
-**Goal:** provide a small useful Matrix with typed failures.
-
-Delivered:
-
-- public `MatricalError` and `std::error::Error` contract;
-- checked `Shape`, `Index`, and half-open rectangular `Region` types;
-- owned dense `Matrix<T>` backed privately by `ndarray::Array2<T>`;
-- exact row-major construction with typed length mismatch;
-- checked immutable and mutable access;
-- deterministic row-major iteration, mutable iteration, and owned conversion;
-- zero-sized, overflow, indexing, and region boundary coverage;
-- public downstream-style integration test, runnable example, and compiled
-  rustdoc example;
-- explicit validity-mask decision: missingness is not intrinsic Matrix storage;
-- removal of queue-backed Matrix storage while retaining detached
-  `MatrixContext` only as required historical scaffolding;
-- explicit unsafe/Miri evaluation for the owned core;
-- successful existing-CI qualification on Rust 1.85.0 and stable.
-
-Exit gate:
-
-- no ordinary invalid shape, index, or region causes a panic: PASS;
-- zero-sized and overflow boundaries are specified and tested: PASS;
-- the public core can be used by a downstream-style integration test and
-  runnable example: PASS;
-- Matrix no longer uses queue capacity as storage or shape: PASS;
-- Miri or an equivalent deeper check is evaluated for the unsafe/aliasing scope:
-  PASS — the owned R2 core adds no unsafe or aliasing machinery, so Miri was
-  deferred for reconsideration with borrowed mutable Lens semantics.
-
-```text
-R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
-Next phase: R3 — make Lens real
-```
+Delivered checked `Shape`, `Index`, `Region`, owned dense `Matrix<T>`, typed core
+failures, exact row-major construction, checked access, deterministic iteration,
+zero-size/overflow coverage, a downstream test, and a runnable example.
 
 ## R3 — Make Lens real
 
 **Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
 
-**Goal:** deliver safe, borrowing views over Matrix data.
-
-Delivered R3 contract:
-
-- immutable rectangular `Lens<'a, T>` borrowing `&'a Matrix<T>`;
-- mutable rectangular `LensMut<'a, T>` borrowing `&'a mut Matrix<T>`;
-- Region revalidation against the receiving Matrix;
-- Lens-local checked indexing;
-- row and column selectors returning the same rectangular Lens types;
-- deterministic logical row-major iteration over the selected rectangle;
-- zero-allocation construction/access/iteration with explicit allocating
-  `to_row_major()` conversion;
-- compile-fail lifetime and mutable-alias examples;
-- exhaustive small-domain Region-boundary tests;
-- explicit GAT evaluation with concrete lifetime-generic views selected for R3
-  because Matrix is the only current view provider and inherent methods encode
-  the ownership contract more directly.
-
-Exit gate:
-
-- Lenses cannot outlive their Matrix: PASS;
-- mutable aliasing is rejected by the type system: PASS;
-- selection boundaries are property-tested: PASS;
-- view operations do not allocate unless documented: PASS;
-- Rust 1.85.0 and stable qualification pass with the committed lockfile: PASS.
-
-```text
-R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
-Next phase: R4 — establish transformation composition
-```
+Delivered immutable `Lens<'a, T>` and mutable `LensMut<'a, T>` borrowing views,
+local indexing, Region revalidation, row/column selectors, logical row-major
+iteration, explicit allocating conversion, and compile-fail lifetime/aliasing
+evidence. A speculative GAT lending-provider abstraction was deferred.
 
 ## R4 — Reintroduce Gear, Cog, and Tag
 
-**Status:** REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
 
-**Goal:** turn the nomenclature into a coherent transformation API while keeping
-the selected Lens as the least-authority boundary.
-
-R4 contract:
+Delivered:
 
 - distinct `ReadGear<T>` and `MutGear<T>` static traits;
-- read-only Gear receives only immutable `Lens` authority;
-- mutating Gear receives only `LensMut` authority;
-- no normal Gear access to Matrix storage, ndarray views, or region-selection
-  authority;
-- first-class downstream-defined Gears without a runtime registry;
-- deterministic built-ins: `SumGear`, `AddScalarGear`, `ScaleGear`, `ClampGear`;
-- typed `Cog<C>` context and small `ValidateCog` policy validation;
-- `InvalidContext` for absent required context and typed validation errors for
-  invalid policy;
-- bounded, inert Tag/provenance with no query or command behavior;
-- `ExecutionReport<O>` preserving Gear identity, exact Region, typed effect,
-  typed outcome, and ordered Tags;
-- central `execute_read` / `execute_mut` paths;
-- explicit full, partial, and empty Lens behavior;
-- external downstream-defined Gear integration and runnable composition example;
-- compile-fail evidence that a read Gear cannot mutate through its Lens;
-- no project-authored unsafe.
+- the caller-selected Lens as the transformation authority boundary;
+- downstream-defined Gears without registry, `Any`, or string dispatch;
+- built-ins `SumGear`, `AddScalarGear`, `ScaleGear`, and `ClampGear`;
+- typed `Cog<C>` and `ValidateCog` policy validation;
+- bounded inert `Tag` provenance;
+- `ExecutionReport<O>` with Gear identity, Region, effect, typed output, and
+  ordered Tags;
+- `execute_read` / `execute_mut` central execution paths;
+- compile-fail evidence that read Gear authority cannot mutate;
+- unchanged lockfile and passing Rust 1.85.0/stable qualification.
 
-Exit gate:
+R4 preserved the authority rule:
 
-- every concept has a distinct responsibility: PASS;
-- read-only and mutating authority are distinct at the type/API level: PASS;
-- a Gear cannot bypass the supplied Lens Region through the public contract: PASS;
-- downstream Gear extension works without registry, `Any`, or string dispatch: PASS;
-- required context absence and invalid policy fail with typed errors: PASS;
-- Tag is bounded, deterministic, and non-executable: PASS;
-- ExecutionReport preserves identity, Region, effect, typed outcome, and Tags: PASS;
-- only the selected Region mutates and empty selections are panic-free: PASS;
-- GAT/HRTB and dynamic-dispatch decisions are evidence-backed: PASS;
-- Rust 1.85.0 and stable exact-head qualification pass with unchanged lockfile: PASS.
+```text
+caller chooses Region
+-> caller creates Lens / LensMut
+-> Gear receives only that bounded capability
+```
 
-R5 remains blocked until R4 receives Teamlead/owner acceptance and is merged.
+A Gear does not receive Matrix storage or a provider from which it can request a
+broader Region. GAT/HRTB and dynamic-registry abstractions remain deferred until
+a concrete consumer demonstrates a need.
 
 ## R5 — API ergonomics and learning surface
 
-**Goal:** make the library understandable and pleasant for a downstream user.
+**Status:** ACTIVE
 
-Planned work:
+**Baseline:**
 
-- crate-level rustdoc and module guides;
-- runnable examples from construction through transformation;
-- consistent naming, builders, conversions, and prelude policy;
-- compile-fail tests for important misuse;
-- error messages reviewed from the caller's perspective;
-- an API stability and deprecation policy.
+```text
+commit 6dc0320d1857d1c4fafd538fbf75ae80566887cc
+tree   c421102b113b2dc2fc78373677a956e807dee7db
+```
+
+**Goal:** make the working R2–R4 library understandable and pleasant for a new
+downstream Rust developer without requiring rehabilitation history or source
+inspection.
+
+Authorized work:
+
+- rewrite the README around the working library;
+- add crate-level rustdoc and a compiled end-to-end example;
+- establish one curated `prelude` and explicit crate-root/module policy;
+- classify and hide unfinished prototype exposure where appropriate for 0.1.0;
+- document supported public contracts rather than restating names;
+- add a task-oriented getting-started guide;
+- add runnable quickstart and custom-Gear examples;
+- add a downstream-style public API smoke test;
+- audit naming, builder, conversion, and caller-facing error behavior;
+- document pre-release stability and deprecation policy;
+- preserve and clarify high-value compile-fail misuse examples;
+- perform a documentation-only new-user walkthrough;
+- qualify Rust 1.85.0 and stable with an unchanged lockfile.
 
 Exit gate:
 
-- a new user can complete representative tasks from documentation alone;
-- every public item is documented or intentionally hidden;
-- examples are compiled in CI;
-- downstream smoke tests pass on the declared MSRV.
+- README truthfully describes the working R2–R4 library and has a usable quick
+  start;
+- crate rustdoc compiles and teaches the conceptual flow;
+- the recommended API is deliberately curated and the prelude contains no
+  prototype junk;
+- supported public items are documented and legacy exposure is classified;
+- getting-started and both R5 examples are mechanically checked;
+- the public API smoke test uses only recommended downstream imports;
+- naming/builders/conversions/errors have explicit decisions;
+- stability/deprecation policy exists;
+- important compile-fail examples teach the authority/lifetime constraints;
+- R3/R4 authority boundaries are unchanged;
+- documentation alone answers representative new-user questions;
+- Rust 1.85.0 and stable qualification pass with byte-identical `Cargo.lock`.
+
+R5 does not add performance claims, Criterion, Rayon, new dependencies, backend
+abstractions, a GAT provider, dynamic Gear registry, persistence, release/tagging,
+or downstream application integration.
 
 ## R6 — Measure, then optimize
 
+**Status:** BLOCKED ON R5 TEAMLEAD/OWNER ACCEPTANCE
+
 **Goal:** establish performance evidence before adding complexity.
 
-Planned work:
-
-- Criterion benchmarks for representative shapes and operations;
-- tall, moderately narrow consumer shapes including `32 x 24`, `1,024 x 64`,
-  and `100,000 x 64` where host resources permit;
-- allocation and copy accounting for Lens and Gear paths;
-- comparison against direct underlying-storage operations;
-- a stated overhead budget relative to direct `ndarray` operations;
-- profiling before layout or dispatch changes;
-- optional Rayon-backed execution only where thresholds show benefit.
-
-Exit gate:
-
-- benchmarks are stable enough to detect regressions;
-- every optimization documents its tradeoff and baseline;
-- parallel results preserve the accepted sequential semantics;
-- performance claims name the workload and environment.
+Planned work includes representative benchmarks, allocation/copy accounting,
+direct-backend comparison, profiling, an explicit overhead budget, and optional
+parallel execution only when measurement justifies it. R6 owns performance
+claims and optimization decisions; R5 must not begin them.
 
 ## R7 — Optional backends and integrations
 
-**Goal:** add extensibility only after the core demonstrates a real need.
+**Status:** BLOCKED ON EARLIER GATES
 
-Candidate work:
-
-- serialization and durable representation;
-- sparse or mapped storage;
-- backend/lending-view traits, with GATs considered only when real
-  implementations justify the borrowing abstraction;
-- optional persistence research;
-- SurrealDB integration only with a concrete use case and isolated feature graph.
-
-Exit gate:
-
-- at least two real implementations justify the abstraction;
-- default users do not pay for unused integrations;
-- feature combinations and compatibility are tested;
-- persistence does not become a hidden mutation or authority channel.
+Candidate work includes serialization, durable representation, sparse/mapped
+storage, and backend/lending traits only after real implementations justify the
+abstraction. Optional persistence must not become a hidden mutation or authority
+channel.
 
 ## R8 — Release qualification
 
-**Goal:** prepare the first rehabilitated release candidate.
+**Status:** BLOCKED ON EARLIER GATES
 
-Planned work:
+Prepare the first rehabilitated release candidate: version/compatibility decision,
+changelog and migration notes, package/license audit, MSRV/stable/downstream
+qualification, documentation/example audit, benchmark baseline, and explicit
+owner-controlled publication decision.
 
-- version and compatibility decision;
-- changelog, migration notes, package metadata, and license audit;
-- MSRV/current-stable/downstream qualification;
-- documentation and example audit;
-- benchmark baseline and known-limitations statement;
-- owner-controlled crates.io publication decision.
-
-The likely release line is `0.2.0`, but version bumping, tagging, and publication
-remain explicit owner decisions.
+No version bump, tag, release date, or publication is authorized by R5.
 
 ## Advanced Rust policy
 
-GATs and higher-ranked trait bounds (HRTBs) are tools, not rehabilitation
-goals. Use them only when they encode a real ownership, borrowing, lending, or
-extensibility contract more clearly and safely than a simpler API.
+GATs and HRTBs are tools, not rehabilitation goals. R3 found the concrete
+lifetime-generic Lens API clearer with one proven provider. R4 added an authority
+reason to keep that decision: a generic provider passed to a Gear could grant
+Region-selection authority broader than the caller-selected Lens.
 
-R3 compared two concrete shapes:
-
-```rust
-pub struct Lens<'a, T> { /* private borrow */ }
-pub struct LensMut<'a, T> { /* private exclusive borrow */ }
-
-impl<T> Matrix<T> {
-    pub fn lens(&self, region: Region) -> Result<Lens<'_, T>, MatricalError>;
-    pub fn lens_mut(&mut self, region: Region) -> Result<LensMut<'_, T>, MatricalError>;
-}
-```
-
-and a GAT-backed lending trait with associated `View<'a>` / `ViewMut<'a>` types.
-The GAT form preserves static dispatch and could abstract over future view
-providers, but R3 has only one proven provider (`Matrix<T>`). It adds a public
-trait, associated-type constraints, and more complex diagnostics without making
-Matrix-to-Lens borrowing safer or making current callers simpler. R3 therefore
-uses concrete lifetime-generic views and deferred a GAT lending abstraction for
-R4 reassessment.
-
-R4 provides stronger evidence for continuing that deferral. Gear composition
-works best when the caller selects a Region and passes the already-bounded
-`Lens`/`LensMut` capability into the Gear. Giving a Gear a generic lending
-provider could also give it authority to choose arbitrary Regions, which is
-broader authority than R4 requires. Restricting such a provider enough to restore
-least authority would recreate the current Lens boundary through a more complex
-public abstraction. R4 therefore does not add a public GAT provider trait.
-
-R4 also found no genuine adapter or callback requiring an HRTB such as
-`for<'a> Fn(&Lens<'a, T>)`, so HRTBs remain deferred until a concrete consumer
-needs lifetime-universal behavior. Static Gear dispatch is sufficient for the
-proven downstream extension; heterogeneous runtime Gear registries remain
-deferred until a real consumer requires them.
+R5 therefore documents the accepted choice rather than reopening it. A future
+GAT/HRTB abstraction requires a concrete composability problem that cannot be
+expressed as clearly with the existing capability boundary.
 
 ## Cross-cutting requirements
 
-Testing, documentation, examples, and dependency review are not final cleanup
-slices. Each functional slice must carry the evidence and learning surface needed
-to make its own contract reviewable.
+Testing, documentation, examples, dependency review, and authority analysis are
+part of every functional slice. They are not deferred cleanup.

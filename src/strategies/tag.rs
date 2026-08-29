@@ -1,9 +1,13 @@
 /// A typed stage marker for transformation provenance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TagStage {
+    /// Data entering a documented workflow.
     Input,
+    /// A transformation step.
     Transform,
+    /// Data leaving a documented workflow.
     Output,
+    /// A caller-defined review or verification step.
     Review,
 }
 
@@ -24,14 +28,17 @@ pub enum Tag {
 }
 
 impl Tag {
+    /// Creates an inert source-label Tag.
     pub fn source(source: impl Into<String>) -> Self {
         Self::Source(source.into())
     }
 
+    /// Creates a typed lifecycle-stage Tag.
     pub const fn stage(stage: TagStage) -> Self {
         Self::Stage(stage)
     }
 
+    /// Creates a numeric sequence/batch Tag.
     pub const fn sequence(sequence: u64) -> Self {
         Self::Sequence(sequence)
     }

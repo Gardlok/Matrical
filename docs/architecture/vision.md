@@ -1,40 +1,41 @@
 # Matrical architecture vision
 
-**Status:** accepted rehabilitation direction; R3 owner accepted; R4 transformation contract active
+**Status:** accepted rehabilitation direction; R4 owner accepted; R5 learning surface active
 
 ## Product position
 
 Matrical is a semantic matrix-transformation library: a small Rust core for
-validated matrix geometry and data, safe borrowing views, transformations,
+validated matrix geometry and data, safe borrowing views, typed transformations,
 contextual policy, and bounded metadata/provenance.
 
 It builds on mature dense storage rather than competing with established
 numerical libraries at storage layout, BLAS kernels, or general linear algebra.
 
+The accepted conceptual flow is:
+
+```text
+Matrix
+  -> Lens / LensMut
+  -> Gear (+ typed Cog)
+  -> ExecutionReport (+ Tags)
+```
+
 ## The nomenclature contract
 
 ### Matrix
 
-The Matrix owns values and a validated two-dimensional `Shape`. It is the source
-of truth for indexing and storage invariants.
-
-R2 establishes Matrix as private `ndarray::Array2<T>` storage wrapped by
-Matrical's semantic contract. Queue capacity is not shape and the historical
-`ArrayQueue<Element<V>>` representation is not a compatibility requirement.
-
-Construction, logical iteration, mutable iteration, and owned conversion use
-explicit deterministic row-major semantics. Ordinary invalid index input is
-fallible rather than an indexing panic. The backend is not exposed through an
-unrestricted mutable reference that could reshape storage behind the validated
-contract.
+`Matrix<T>` owns values and a validated two-dimensional `Shape`. Construction,
+logical iteration, mutable iteration, and owned conversion use deterministic
+row-major semantics. The private first backend is `ndarray::Array2<T>`; callers
+cannot reshape that storage behind Matrical's checked contract.
 
 ### Shape, Index, and Region
 
 `Shape` proves that `rows * columns` fits in `usize`. Zero-sized shapes are valid,
 including `0 x 0`, `0 x N`, and `N x 0`.
 
-`Index` is an independently constructible row/column coordinate. Matrix access
-checks `row < rows` and `column < columns` before returning a reference.
+`Index` is an independently constructible row/column coordinate. Matrix and Lens
+access validate it before returning a reference.
 
 `Region` is a checked half-open rectangle:
 
@@ -44,39 +45,37 @@ checks `row < rows` and `column < columns` before returning a reference.
 ```
 
 End boundaries may equal the Shape dimension. Reversed or out-of-bounds ranges
-are typed failures. Empty regions are valid. A Region presented to a Matrix for
-Lens construction is revalidated against that receiving Matrix.
+are typed failures. Empty Regions are valid. A Region presented for Lens
+construction is revalidated against the receiving Matrix.
 
 ### Lens
 
-`Lens<'a, T>` is an immutable rectangular borrowing view over `Matrix<T>`;
-`LensMut<'a, T>` is the mutable counterpart:
+`Lens<'a, T>` is an immutable rectangular borrowing view; `LensMut<'a, T>` is the
+mutable counterpart:
 
 ```text
 Matrix<T> owns data
-Lens<'a, T> borrows &'a Matrix<T>
+Lens<'a, T>    borrows &'a Matrix<T>
 LensMut<'a, T> borrows &'a mut Matrix<T>
 ```
 
-The borrow checker prevents either view from outliving its parent borrow and
-prevents a second mutable Lens through the same Matrix while the first remains
-live. R3 deliberately accepts this conservative whole-Matrix mutable borrow even
-for logically disjoint Regions; it adds no unsafe splitting or runtime overlap
-tracking.
+The borrow checker prevents a Lens from outliving its Matrix and gives a
+`LensMut` exclusive access to the parent Matrix for its lifetime. Matrical does
+not add unsafe disjoint splitting or runtime overlap tracking.
 
-A Lens stores the selected Region in parent coordinates but exposes element
-access in Lens-local coordinates. Rows and columns are ordinary rectangular
-Lenses, including valid empty `1 x 0` or `0 x 1` selections where the parent
-Shape permits them.
+A Lens stores the selected Region in parent coordinates but exposes checked
+`Index` access in Lens-local coordinates. Local `(0, 0)` names the Region's
+upper-left selected element.
 
 Lens construction, row/column selection, checked access, and iteration do not
-intentionally allocate. Iteration follows logical row-major order within the
-selected rectangle. `to_row_major()` is the explicit allocating conversion.
+intentionally allocate. Logical iteration is row-major within the selected
+rectangle and makes no physical-contiguity promise. `to_row_major()` is the
+explicit allocating `T: Clone` conversion.
 
 ### Gear
 
-A Gear is a transformation applied only to data visible through the Lens it is
-given. R4 makes effect authority explicit with separate static traits:
+A Gear transforms only the data visible through the Lens supplied by its caller.
+Read and mutating authority are distinct static contracts:
 
 ```text
 ReadGear<T> -> &Lens<'_, T>
@@ -84,61 +83,80 @@ MutGear<T>  -> &mut LensMut<'_, T>
 ```
 
 A Gear does not normally receive `&Matrix<T>`, `&mut Matrix<T>`, ndarray storage,
-or a generic provider from which it can request a broader Region. The
-caller-selected Lens is the capability boundary.
+or a generic selector/provider from which it can request a broader Region. This
+is the central least-authority rule of the transformation design.
 
-Downstream crates can implement Gear traits directly with ordinary Rust. Static
-dispatch is the default. No central registry, factory registration, dependency
-injection container, `Any` lookup, string operation dispatch, or mandatory boxed
-trait object is part of R4.
+Downstream crates implement Gear traits directly with static dispatch. A central
+registry, factory registration, `Any` context lookup, string operation dispatch,
+DI container, and mandatory boxed trait objects are not part of the accepted
+core.
 
-Built-in deterministic examples include read-only `SumGear` and mutating
-`AddScalarGear`, `ScaleGear`, and `ClampGear`.
+Built-in deterministic examples are `SumGear`, `AddScalarGear`, `ScaleGear`, and
+`ClampGear`.
 
 ### Cog
 
-A Cog supplies typed context or policy used by a Gear:
+`Cog<C>` carries optional context whose concrete Rust type is selected by a
+Gear's associated `Context`. `ValidateCog` runs before Gear execution. Missing
+required context returns `MatricalError::InvalidContext`; invalid concrete policy
+returns an appropriate typed error such as `InvalidValue`.
 
-```text
-Cog<C> -> Option<C>
-```
-
-The Gear's associated `Context` type identifies the required Rust type at
-compile time. Central execution resolves the context and returns
-`MatricalError::InvalidContext` when it is absent. `ValidateCog` provides a small
-ordinary typed validation contract before the Gear runs. Invalid concrete policy
-uses typed errors such as `InvalidValue`; no `Any` downcast or string lookup is
-needed.
+Cog is intentionally not a string-keyed map, `Any` container, or dependency
+injection mechanism.
 
 ### Tag
 
-A Tag records bounded typed metadata/provenance associated with successful Gear
-execution. R4 uses a finite namespace equivalent to source label, typed stage,
-and numeric sequence/batch identity.
+`Tag` is bounded typed provenance associated with a successful execution report.
+The current namespace provides a source label, typed `TagStage`, and numeric
+sequence identity.
 
-Tags are inert data. They contain no callbacks, query objects, arbitrary command
-maps, or dependency-injection payloads. Source text has one explicit role as a
-provenance label and is never interpreted as executable content.
+Tags are inert. Source text is never interpreted as code, a query, a command, or
+a Gear selector. Tags are attached to a successful `ExecutionReport` after the
+Gear returns and are not passed into Gear execution.
 
-Crucially, Tags are not passed into Gear execution. They are attached to the
-successful `ExecutionReport` after the Gear returns, so Tag metadata cannot act
-as a hidden transformation command channel.
+### ExecutionReport
 
-### Execution report
-
-`ExecutionReport<O>` describes a successful execution without erasing the output
-type. It records:
+`ExecutionReport<O>` records a successful execution without erasing its output:
 
 ```text
 Gear identity
-exact selected Region
+exact caller-selected Region
 GearEffect::{ReadOnly, Mutating}
 strongly typed output O
 ordered provenance Tags
 ```
 
-Failures remain `Err(MatricalError)` and do not produce fabricated success
-reports.
+Failures remain `Err(MatricalError)`; Matrical does not fabricate success reports
+around failed transformations.
+
+## Public learning surface
+
+R5 makes the conceptual architecture the documentation map instead of exposing
+prototype-era module history as the normal API.
+
+The supported discovery policy is:
+
+```text
+matrical::prelude::*
+  recommended everyday API
+
+matrical::{Shape, Matrix, Lens, ReadGear, ...}
+  named supported and discoverable crate-root API
+
+matrical::schematics
+  core geometry/storage organization
+
+matrical::strategies
+  Lens, Gear, Cog, Tag, and reporting organization
+```
+
+Historical operation scaffolding may remain source-accessible and `doc(hidden)`
+during 0.1.0 rehabilitation when compatibility is useful, but it is not part of
+the learning contract. Historical SQL, Element, Vector, `MatrixContext`,
+`AtomicBoolError`, and raw dependency types are not prelude exports.
+
+This curation narrows accidental prototype exposure without changing the
+accepted R2–R4 concepts.
 
 ## Layering
 
@@ -150,24 +168,22 @@ matrical-view
   Lens, LensMut, validated selectors and iterators
 
 matrical-transform
-  ReadGear, MutGear, Cog, Tag, ExecutionReport
+  ReadGear, MutGear, Cog, ValidateCog, Tag, ExecutionReport
 
-optional integrations
-  parallel execution, serialization, persistence, specialized storage
+optional later integrations
+  measurement-driven parallelism, serialization, persistence, specialized storage
 ```
 
-The first rehabilitation release may remain one crate. These are contract
-boundaries, not an immediate workspace-split requirement.
+The first rehabilitation release may remain one crate. These are semantic
+boundaries, not a requirement to split the workspace.
 
 ## Foundational invariants
 
 - Shape dimensions and total element count agree without overflow.
-- Zero-sized Shape/Matrix values are valid and do not require special panic
-  paths.
-- Every public index and region is validated before access/use.
-- Region ordering is half-open and empty-region behavior is explicit.
-- Public construction/access failures are typed and do not panic for ordinary
-  invalid input.
+- Zero-sized Shape/Matrix values are valid.
+- Every public index and Region is validated before access/use.
+- Region ordering is half-open and empty-selection behavior is explicit.
+- Ordinary invalid public input is typed and fallible rather than panic-driven.
 - Matrix and Lens logical iteration preserve deterministic row-major order.
 - A Lens cannot outlive the Matrix borrow it contains.
 - A mutable Lens has exclusive access to its parent Matrix for its lifetime.
@@ -177,94 +193,84 @@ boundaries, not an immediate workspace-split requirement.
 - Invalid contextual policy is rejected before Gear execution.
 - Tag/provenance cannot mutate Matrix data or select an operation by side
   channel.
-- Parallel execution, if introduced, preserves accepted sequential semantics
-  unless explicitly documented otherwise.
+- Convenience APIs must not silently broaden authority.
+
+## Constructors, builders, and conversions
+
+The accepted simple types use explicit typed constructors rather than builders.
+`Shape`, `Region`, `Cog`, `ScalarPolicy`, `ClampPolicy`, and `Tag` do not currently
+have enough optional configuration or ordering complexity to justify builder
+ceremony.
+
+Conversion names intentionally communicate ownership/allocation:
+
+```text
+Matrix::from_row_major  constructs owned checked Matrix; fallible
+Matrix::into_row_major  consumes Matrix and returns owned values
+Lens::to_row_major      borrows Lens, clones selected T values, allocates
+```
+
+Matrical does not add `From`/`Into` implementations that conceal fallibility.
 
 ## Storage and missingness
 
-The accepted first dense storage is `ndarray::Array2<T>`, kept as a private
-implementation detail behind Matrical-owned invariants.
+The accepted first dense storage is private `ndarray::Array2<T>`. Lens borrows
+the checked Matrix wrapper and Gear receives only Lens capabilities.
 
-Lens borrows the checked `Matrix<T>` wrapper and uses Matrix's checked access and
-logical iterators. Gear adds no independent ndarray storage and no direct ndarray
-slicing contract.
+A validity/missingness mask is not intrinsic Matrix storage. Missingness belongs
+in an explicit paired structure, wrapper, or downstream domain type unless a
+future concrete use case proves that core Matrical should own that semantic.
 
-A validity/missingness mask is **not intrinsic Matrix storage**. `Matrix<T>`
-represents values and shape. Missingness belongs in an explicit paired
-structure, wrapper, or downstream domain type unless a later concrete use case
-proves that Matrical core should own that semantic.
-
-Backend abstraction waits until real storage implementations expose a stable
-shared need. A premature universal storage trait would repeat the prototype's
-largest problem: abstractions arriving before working behavior.
+Backend abstraction waits until multiple real implementations expose a stable
+shared need.
 
 ## Advanced Rust and authority
 
-GATs and HRTBs are tools, not design goals. R3 evaluated a GAT-backed lending
-provider and deferred it partly because Matrix was the only proven provider.
-R4 reassesses the choice using the now-real transformation architecture.
+GATs and HRTBs are tools, not design goals. R3 evaluated a lending-provider GAT
+and retained concrete lifetime-generic Lenses because Matrix was the only proven
+provider. R4 added a stronger reason: passing a selector/provider to a Gear could
+give it authority to choose a broader Region than the caller intended.
 
-### Design A: consume an already-selected capability
+The accepted architecture therefore consumes an already-selected capability:
 
 ```text
 caller: Matrix -> Lens / LensMut
-Gear:   receives that Lens / LensMut
+Gear:   receives that exact Lens / LensMut
 ```
 
-This directly enforces least authority: the Gear cannot choose a larger Region
-than the caller granted.
-
-### Design B: give Gear a lending provider
-
-A public GAT provider could associate `View<'a>` / `ViewMut<'a>` with future
-providers and preserve static dispatch. But a provider that can create arbitrary
-Regions also gives the Gear selection authority it does not need. Restricting
-that provider enough to restore least authority would recreate the already
-working Lens boundary through a more complex public abstraction.
-
-R4 therefore defers a public GAT lending-provider trait for an authority-specific
-reason: Gear composition actively benefits from receiving the narrower
-caller-selected Lens rather than a provider. The current architecture gains no
-meaningful downstream reuse, ergonomics, or diagnostic benefit from the broader
-surface.
-
-R4 likewise finds no genuine adapter requiring `for<'a> Fn(&Lens<'a, T>)` or an
-equivalent HRTB. Gear methods naturally operate over the borrow they receive.
-HRTBs remain available when a future concrete adapter needs lifetime-universal
-callback behavior.
+R5 documents this choice and does not reopen it for ergonomic novelty. A future
+GAT/HRTB abstraction requires a concrete composability failure that justifies the
+extra public complexity without weakening least authority.
 
 ## Dynamic dispatch
 
-R4 uses static dispatch. An external integration test defines a downstream Gear
-and context type without registry or boxing, demonstrating the current extension
-requirement. Heterogeneous runtime pipelines can be reconsidered when a real
-consumer requires them; R4 does not add `Vec<Box<dyn Gear>>`, a runtime registry,
-or string lookup speculatively.
+Static Gear dispatch is the default. The public extension model allows a
+downstream crate to define a context type, implement `ValidateCog`, implement a
+Gear trait, and call `execute_read`/`execute_mut` without registration or boxing.
+Heterogeneous runtime pipelines remain deferred until a real consumer requires
+them.
 
 ## Concurrency and performance
 
 The initial contract is deterministic and sequential. Thread-safe containers do
 not by themselves define safe matrix-level concurrency.
 
-Parallelism remains optional and evidence-driven. Before concurrent mutation is
-introduced, Matrical must specify aliasing, partial observation, cancellation,
-failure, determinism, and synchronization ownership.
-
-Zero-copy claims identify only borrowing operations. `to_row_major()` explicitly
-allocates and clones selected values.
+R6 owns measurement and optimization. R5 makes no benchmark, throughput, or
+parallel-speedup claims. Zero-copy wording in R5 refers only to Lens borrowing
+operations; `to_row_major()` explicitly allocates and clones values.
 
 ## Error contract
 
-`MatricalError` is a public, non-recursive, inspectable error type implementing
-`std::error::Error`. R2 distinguishes shape, construction, index, and region
-failures. R4 reuses `InvalidContext` for absent required Cog context and
-`InvalidValue` for invalid contextual policy rather than creating an elaborate
-new hierarchy.
+`MatricalError` is public, structural, non-recursive, and implements
+`std::error::Error`. Geometry/construction failures carry available structural
+context. `InvalidContext` means required Cog context is absent; `InvalidValue`
+means a value or typed policy failed validation. Legacy variants remain visibly
+classified rather than being presented as richer errors than they are.
 
 ## Dependency policy
 
-R4 changes no dependency metadata or lockfile. ndarray remains the private dense
-storage backend and Crossbeam remains historical non-Matrix residue outside this
+R5 changes no dependency metadata or lockfile. ndarray remains the private dense
+storage backend; Crossbeam remains historical non-Matrix residue outside this
 slice.
 
 Optional database, serialization, parallelism, and benchmarking capabilities
@@ -277,11 +283,11 @@ must earn explicit features and tests later.
 - A hidden validity/missingness mask in `Matrix<T>`.
 - Lock-free or parallel Matrix/Lens mutation as a default requirement.
 - Unsafe disjoint mutable Lens splitting.
-- Runtime Gear registries or dependency-injection containers without a concrete
-  consumer need.
+- Giving a Gear arbitrary Region-selection authority.
+- Runtime Gear registries or DI containers without a concrete consumer need.
 - Tags as SQL/query/command envelopes.
-- Preserving unfinished 0.1.0 behavior as a compatibility contract.
-- Using advanced Rust syntax without a measurable correctness, usability, or
+- Preserving unfinished 0.1.0 prototype APIs as a compatibility contract.
+- Using advanced Rust syntax without a correctness, usability, or measured
   performance benefit.
 
 ## Downstream consumers
@@ -289,5 +295,5 @@ must earn explicit features and tests later.
 Concrete consumers may inform acceptance criteria without moving their domain
 model into Matrical. The first recorded input remains the
 [longitudinal feature-analysis consumer note](consumers/longitudinal-feature-analysis.md).
-Application identities, capture semantics, missingness meaning, and domain
-interpretation remain downstream responsibilities.
+Application identity, capture semantics, missingness meaning, persistence, and
+domain interpretation remain downstream responsibilities.

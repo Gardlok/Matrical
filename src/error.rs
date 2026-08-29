@@ -1,32 +1,37 @@
 use std::fmt;
 
-use std::sync::Mutex;
-
-use std::sync::atomic::{AtomicBool, Ordering};
-
-// // Error handling
+/// Errors returned by Matrical's checked public API.
+///
+/// R2–R4 callers should normally match the structural geometry, construction,
+/// indexing, context, and validation variants directly. `Regular`, `Custom`, and
+/// `ShouldNotOccur` are retained from the historical 0.1.0 prototype and are not
+/// the preferred basis for new APIs.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MatricalError {
+    /// Historical operation error category retained for prototype compatibility.
     Regular(MatricalErrorType),
+    /// Historical free-form error retained for prototype compatibility.
     Custom(String),
+    /// A supplied value or policy failed its typed validation contract.
     InvalidValue,
+    /// Required typed Gear context was absent.
     InvalidContext,
+    /// An internal invariant believed unreachable was violated.
     ShouldNotOccur,
+    /// An Index was outside the Matrix or Lens-local shape being accessed.
     IndexOutOfBounds,
-    ShapeElementCountOverflow {
-        rows: usize,
-        columns: usize,
-    },
-    RowMajorLengthMismatch {
-        expected: usize,
-        actual: usize,
-    },
+    /// `rows * columns` cannot be represented by `usize`.
+    ShapeElementCountOverflow { rows: usize, columns: usize },
+    /// Row-major construction received a value count different from Shape::len.
+    RowMajorLengthMismatch { expected: usize, actual: usize },
+    /// A Region start boundary was greater than its corresponding end boundary.
     RegionReversed {
         start_row: usize,
         end_row: usize,
         start_column: usize,
         end_column: usize,
     },
+    /// A Region boundary exceeded the Shape it was validated against.
     RegionOutOfBounds {
         shape_rows: usize,
         shape_columns: usize,
@@ -43,6 +48,7 @@ pub enum AtomicBoolError {
     MissingOperand,
 }
 
+/// Historical prototype error categories retained for structural compatibility.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MatricalErrorType {
     IncorrectDimensions,
@@ -52,12 +58,14 @@ pub enum MatricalErrorType {
 impl fmt::Display for MatricalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MatricalError::Regular(err) => write!(f, "Regular error: {}", err.as_str()),
-            MatricalError::Custom(err) => write!(f, "Custom error: {}", err),
-            MatricalError::ShouldNotOccur => write!(f, "Other error"),
-            MatricalError::InvalidValue => write!(f, "Invalid value"),
-            MatricalError::InvalidContext => write!(f, "Invalid context"),
-            MatricalError::IndexOutOfBounds => write!(f, "Index out of bounds"),
+            MatricalError::Regular(err) => write!(f, "legacy operation error: {}", err.as_str()),
+            MatricalError::Custom(err) => write!(f, "custom Matrical error: {err}"),
+            MatricalError::ShouldNotOccur => {
+                write!(f, "an internal Matrical invariant was violated")
+            }
+            MatricalError::InvalidValue => write!(f, "value failed validation"),
+            MatricalError::InvalidContext => write!(f, "required Gear context is missing"),
+            MatricalError::IndexOutOfBounds => write!(f, "index is outside the selected shape"),
             MatricalError::ShapeElementCountOverflow { rows, columns } => write!(
                 f,
                 "Matrix shape {rows}x{columns} overflows the element-count range"
@@ -101,21 +109,10 @@ impl MatricalErrorType {
     }
 }
 
-// ERROR
-
 #[derive(Debug)]
 pub struct Error {
     message: String,
-    // you can add more fields here
 }
-
-// impl Error {
-//     pub fn new(message: &str) -> Self {
-//         Error {
-//             message: message.to_string(),
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -183,5 +180,19 @@ mod tests {
                 actual: 3,
             }
         );
+    }
+
+    #[test]
+    fn caller_facing_display_is_specific_without_erasing_variant_identity() {
+        let cases = [
+            (MatricalError::InvalidValue, "failed validation"),
+            (MatricalError::InvalidContext, "context is missing"),
+            (MatricalError::IndexOutOfBounds, "selected shape"),
+            (MatricalError::ShouldNotOccur, "internal Matrical invariant"),
+        ];
+
+        for (error, expected) in cases {
+            assert!(error.to_string().contains(expected));
+        }
     }
 }
