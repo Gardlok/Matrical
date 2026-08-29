@@ -42,6 +42,7 @@ pub enum MatricalError {
     },
 }
 
+#[allow(dead_code)]
 pub enum AtomicBoolError {
     MutexPoisoned,
     IndexOutOfBounds,
@@ -65,7 +66,7 @@ impl fmt::Display for MatricalError {
             }
             MatricalError::InvalidValue => write!(f, "value failed validation"),
             MatricalError::InvalidContext => write!(f, "required Gear context is missing"),
-            MatricalError::IndexOutOfBounds => write!(f, "index is outside the selected shape"),
+            MatricalError::IndexOutOfBounds => write!(f, "Index out of bounds"),
             MatricalError::ShapeElementCountOverflow { rows, columns } => write!(
                 f,
                 "Matrix shape {rows}x{columns} overflows the element-count range"
@@ -109,6 +110,7 @@ impl MatricalErrorType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Error {
     message: String,
@@ -187,7 +189,7 @@ mod tests {
         let cases = [
             (MatricalError::InvalidValue, "failed validation"),
             (MatricalError::InvalidContext, "context is missing"),
-            (MatricalError::IndexOutOfBounds, "selected shape"),
+            (MatricalError::IndexOutOfBounds, "out of bounds"),
             (MatricalError::ShouldNotOccur, "internal Matrical invariant"),
         ];
 
