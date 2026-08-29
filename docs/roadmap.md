@@ -14,7 +14,9 @@
 
 **Accepted R2 merge:** `2f76a87e171a32a58a6d7244fdeb1b8794fc043a`
 
-**Current phase:** R3 active
+**Accepted R3 merge:** `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`
+
+**Current phase:** R4 active
 
 This roadmap is ordered. Later slices may be researched early, but implementation
 should not bypass an earlier invariant or acceptance gate.
@@ -123,11 +125,11 @@ Next phase: R3 — make Lens real
 
 ## R3 — Make Lens real
 
-**Status:** IN DEVELOPMENT — ACTIVE
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
 
 **Goal:** deliver safe, borrowing views over Matrix data.
 
-Current R3 contract:
+Delivered R3 contract:
 
 - immutable rectangular `Lens<'a, T>` borrowing `&'a Matrix<T>`;
 - mutable rectangular `LensMut<'a, T>` borrowing `&'a mut Matrix<T>`;
@@ -145,36 +147,59 @@ Current R3 contract:
 
 Exit gate:
 
-- Lenses cannot outlive their Matrix;
-- mutable aliasing is rejected by the type system;
-- selection boundaries are property-tested;
-- view operations do not allocate unless documented;
-- Rust 1.85.0 and stable qualification pass with the committed lockfile.
+- Lenses cannot outlive their Matrix: PASS;
+- mutable aliasing is rejected by the type system: PASS;
+- selection boundaries are property-tested: PASS;
+- view operations do not allocate unless documented: PASS;
+- Rust 1.85.0 and stable qualification pass with the committed lockfile: PASS.
 
-R4 remains blocked until R3 is reviewable and receives Teamlead/owner acceptance.
+```text
+R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
+Next phase: R4 — establish transformation composition
+```
 
 ## R4 — Reintroduce Gear, Cog, and Tag
 
-**Goal:** turn the nomenclature into a coherent transformation API.
+**Status:** REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
-Planned work:
+**Goal:** turn the nomenclature into a coherent transformation API while keeping
+the selected Lens as the least-authority boundary.
 
-- a minimal Gear trait or operation protocol;
-- distinct read-only and mutating transformation contracts unless working Lens
-  evidence justifies another effect-safe design;
-- first-class downstream-defined Gears without a required runtime registry;
-- several concrete transformations with deterministic behavior;
-- typed Cog requirements and validation;
-- bounded Tag/provenance representation;
-- execution reports that identify selection, operation, and outcome;
-- examples demonstrating composition without runtime-pattern ceremony.
+R4 contract:
+
+- distinct `ReadGear<T>` and `MutGear<T>` static traits;
+- read-only Gear receives only immutable `Lens` authority;
+- mutating Gear receives only `LensMut` authority;
+- no normal Gear access to Matrix storage, ndarray views, or region-selection
+  authority;
+- first-class downstream-defined Gears without a runtime registry;
+- deterministic built-ins: `SumGear`, `AddScalarGear`, `ScaleGear`, `ClampGear`;
+- typed `Cog<C>` context and small `ValidateCog` policy validation;
+- `InvalidContext` for absent required context and typed validation errors for
+  invalid policy;
+- bounded, inert Tag/provenance with no query or command behavior;
+- `ExecutionReport<O>` preserving Gear identity, exact Region, typed effect,
+  typed outcome, and ordered Tags;
+- central `execute_read` / `execute_mut` paths;
+- explicit full, partial, and empty Lens behavior;
+- external downstream-defined Gear integration and runnable composition example;
+- compile-fail evidence that a read Gear cannot mutate through its Lens;
+- no project-authored unsafe.
 
 Exit gate:
 
-- every concept has a distinct responsibility;
-- a Gear cannot bypass Lens bounds;
-- required context cannot be absent at runtime without a typed error;
-- examples demonstrate both static and, only if justified, dynamic dispatch.
+- every concept has a distinct responsibility: PASS;
+- read-only and mutating authority are distinct at the type/API level: PASS;
+- a Gear cannot bypass the supplied Lens Region through the public contract: PASS;
+- downstream Gear extension works without registry, `Any`, or string dispatch: PASS;
+- required context absence and invalid policy fail with typed errors: PASS;
+- Tag is bounded, deterministic, and non-executable: PASS;
+- ExecutionReport preserves identity, Region, effect, typed outcome, and Tags: PASS;
+- only the selected Region mutates and empty selections are panic-free: PASS;
+- GAT/HRTB and dynamic-dispatch decisions are evidence-backed: PASS;
+- Rust 1.85.0 and stable exact-head qualification pass with unchanged lockfile: PASS.
+
+R5 remains blocked until R4 receives Teamlead/owner acceptance and is merged.
 
 ## R5 — API ergonomics and learning surface
 
@@ -277,11 +302,22 @@ The GAT form preserves static dispatch and could abstract over future view
 providers, but R3 has only one proven provider (`Matrix<T>`). It adds a public
 trait, associated-type constraints, and more complex diagnostics without making
 Matrix-to-Lens borrowing safer or making current callers simpler. R3 therefore
-uses concrete lifetime-generic views and defers a GAT lending abstraction until
-multiple real providers or R4 composition demonstrates a concrete need.
+uses concrete lifetime-generic views and deferred a GAT lending abstraction for
+R4 reassessment.
 
-Later backend abstractions may revisit GATs or HRTBs only when concrete
-implementations justify the additional type-system complexity.
+R4 provides stronger evidence for continuing that deferral. Gear composition
+works best when the caller selects a Region and passes the already-bounded
+`Lens`/`LensMut` capability into the Gear. Giving a Gear a generic lending
+provider could also give it authority to choose arbitrary Regions, which is
+broader authority than R4 requires. Restricting such a provider enough to restore
+least authority would recreate the current Lens boundary through a more complex
+public abstraction. R4 therefore does not add a public GAT provider trait.
+
+R4 also found no genuine adapter or callback requiring an HRTB such as
+`for<'a> Fn(&Lens<'a, T>)`, so HRTBs remain deferred until a concrete consumer
+needs lifetime-universal behavior. Static Gear dispatch is sufficient for the
+proven downstream extension; heterogeneous runtime Gear registries remain
+deferred until a real consumer requires them.
 
 ## Cross-cutting requirements
 

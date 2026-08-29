@@ -7,13 +7,14 @@
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     2f76a87e171a32a58a6d7244fdeb1b8794fc043a
-tree       947684bc73841fb0842d5664e168e28bc8d3b05b
+commit     9fbc712084a78570e8ac2b980ff0d4474c90ee7f
+tree       4db71daeb50553edc6cdc69a2986f93087be4f35
 version    0.1.0
 ```
 
-Commit `2f76a87e171a32a58a6d7244fdeb1b8794fc043a` merged PR #7 and
-owner-accepted R2. PR #6 owner-accepted R1-D at
+Commit `9fbc712084a78570e8ac2b980ff0d4474c90ee7f` merged PR #8 and
+owner-accepted R3. PR #7 owner-accepted R2 at
+`2f76a87e171a32a58a6d7244fdeb1b8794fc043a`; PR #6 owner-accepted R1-D at
 `059f148a99cfe2b5b881ada9af9acc286f584b6a`; PR #5 owner-accepted R1-C at
 `16ddcc878c9cc8c8701dbc01453e08cfccd00b54`; PR #4 owner-accepted R1-B at
 `1a5e4a72d7c0bb2a6ddd92b070eb853e98d6f136`; PR #3 owner-accepted R1-A at
@@ -46,7 +47,9 @@ The accepted baseline is not a claim that the public library is release-ready.
 
 **R2:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 
-**R3:** ACTIVE
+**R3:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
+
+**R4:** ACTIVE
 
 R1-A was dispatched from its exact accepted commit and tree. Its reconnaissance
 report is
@@ -101,9 +104,9 @@ and qualified them rather than retroactively changing the reconnaissance result.
 - concurrency, parallelism, persistence, and broader optimization aspirations
   remain unsupported until later contracts and evidence justify them.
 
-These findings remain historical inputs to rehabilitation. R3 replaces only the
-unfinished historical Lens meaning and does not silently declare the remaining
-prototype scaffolding complete.
+These findings remain historical inputs to rehabilitation. R4 replaces only the
+unfinished historical Gear/Cog/Tag meaning and does not silently declare the
+remaining prototype scaffolding complete.
 
 ## Downstream design input
 
@@ -160,14 +163,13 @@ R2 established the first checked public core around `Shape`, `Index`, `Region`,
 - GATs/HRTBs were not forced into the owned R2 core. R3 compares a GAT-backed
   lending-view design with a concrete lifetime-generic design.
 
-PR #7 merged the owner-accepted R2 result at the exact current baseline above.
-The preserved R2 evidence remains in
+PR #7 merged the owner-accepted R2 result. The preserved R2 evidence remains in
 [`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
 
-## R3 borrowing-view candidate
+## R3 borrowing-view result
 
-R3 replaces the historical validation/strategy Lens prototype with concrete
-`Lens<'a, T>` and `LensMut<'a, T>` borrowing views. The current implementation
+R3 replaced the historical validation/strategy Lens prototype with concrete
+`Lens<'a, T>` and `LensMut<'a, T>` borrowing views. The accepted implementation
 keeps ndarray private by borrowing the checked parent `Matrix<T>` directly:
 immutable Lens stores `&Matrix<T>` and mutable Lens stores `&mut Matrix<T>`.
 This makes Matrix lifetime and mutable exclusivity visible to the Rust borrow
@@ -184,19 +186,46 @@ operations and do not intentionally allocate. `to_row_major()` is the explicit
 allocating `T: Clone` conversion. Logical iteration is row-major within the
 selected rectangle and does not promise physical contiguity.
 
-The detailed R3 design and qualification record is
+PR #8 merged the owner-accepted R3 result. The detailed R3 design and
+qualification record remains
 [`development/2026-08-28-r3-safe-lens-views.md`](development/2026-08-28-r3-safe-lens-views.md).
+
+## R4 transformation candidate
+
+R4 rebuilds Gear, Cog, and Tag around the accepted Lens capability boundary:
+
+```text
+Matrix<T>
+    -> Lens / LensMut
+    -> read-only or mutating Gear
+    +  typed Cog context/policy
+    -> ExecutionReport<O>
+    +  bounded Tag provenance
+```
+
+Read and mutating Gear contracts are distinct. A Gear receives only the Lens
+selected by the caller; it does not receive Matrix storage or authority to select
+a larger Region. Typed Cog context is resolved and validated before execution,
+with missing required context returning `InvalidContext`. Tags are bounded inert
+provenance and never enter the Gear call. Reports preserve Gear identity, exact
+Region, typed effect, typed outcome, and ordered Tags.
+
+Built-in R4 examples are deterministic `SumGear`, `AddScalarGear`, `ScaleGear`,
+and `ClampGear`. Downstream crates can define Gears through the public traits with
+static dispatch and no registry.
+
+The detailed implementation and qualification record is
+[`development/2026-08-28-r4-transform-composition.md`](development/2026-08-28-r4-transform-composition.md).
 
 ## Residual historical debt
 
-R3 intentionally does not reconstruct Gear, Cog, Tag, Vector, the broader
-operation framework, or inherited warning/formatting residue. `MatrixContext`
-remains detached legacy scaffolding because historical operation traits still
-reference it; it is not Matrix storage and does not define Matrix shape,
-ownership, or Lens semantics.
+R4 intentionally does not reconstruct Vector, the broader operation framework,
+detached `MatrixContext`, dependency cleanup, or inherited warning/formatting
+residue. Those remain outside the transformation-layer exit gate.
 
 ## Current gate
 
-R3 development is active on `rehab/r3-safe-lens-views` from accepted baseline
-`2f76a87e171a32a58a6d7244fdeb1b8794fc043a`. R4 remains blocked until the R3
-candidate completes qualification and receives Teamlead/owner acceptance.
+R4 is a ready-for-review candidate on `rehab/r4-transform-composition` from
+accepted baseline `9fbc712084a78570e8ac2b980ff0d4474c90ee7f`, tree
+`4db71daeb50553edc6cdc69a2986f93087be4f35`. R5 remains blocked until R4
+receives Teamlead/owner acceptance and is merged.
