@@ -1,5 +1,3 @@
-
-
 [package]
 name = "matrical"
 version = "0.1.0"
@@ -10,3 +8,14 @@ authors = ["Anthony Gardner"]
 [dependencies]
 ndarray = "0.15.3"
 crossbeam = "0.8.2"
+
+[dev-dependencies]
+criterion = { version = "=0.7.0", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "r6_selection"
+harness = false
+
+[[bench]]
+name = "r6_transform"
+harness = false
