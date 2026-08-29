@@ -1,97 +1,163 @@
 # Matrical
 
-**Status: rehabilitation campaign — architecture experiment, not production-ready**
+**Status: rehabilitated core working; API-learning surface active; version 0.1.0**
 
-Matrical is an experimental Rust library for expressing matrix work as a
-combination of selection, transformation, context, and metadata.
+Matrical is a semantic matrix-transformation library built around validated
+geometry, borrowing selections, typed transformations, contextual policy, and
+provenance. It uses a private dense `ndarray::Array2<T>` backend while exposing a
+Matrical-owned contract for shape, selection, transformation authority, and
+execution reporting.
 
-The original prototype explored generic elements, concurrent containers,
-runtime strategies, validation, database-backed data, and zero-copy views. The
-rehabilitation campaign is retaining the most distinctive part of that work—the
-nomenclature and semantic model—while rebuilding the implementation around
-small, testable invariants.
+The rehabilitated R2–R4 core is working and qualified on the declared Rust 1.85
+MSRV and current stable through the repository qualification lanes. Matrical is
+still `0.1.0`: the public API may change before the first rehabilitated release,
+and this repository is **not** yet claiming production or release readiness.
 
-Matrical is not currently ready for crates.io consumers. The public API may
-change substantially while the core is reconstructed.
+## Core vocabulary
 
-## The model
+- **Matrix** — owned dense values plus a validated two-dimensional `Shape`.
+- **Region** — a checked half-open rectangle used to select matrix data.
+- **Lens / LensMut** — immutable or exclusive mutable borrowing views over one
+  caller-selected Region, with Lens-local indexing.
+- **Gear** — a typed read-only or mutating transformation that receives only the
+  supplied Lens capability.
+- **Cog** — typed context or policy validated before a Gear executes.
+- **Tag** — bounded, inert provenance attached to successful execution reports;
+  Tags never control execution.
+- **ExecutionReport** — Gear identity, exact Region, effect class, typed output,
+  and ordered Tags for a successful execution.
 
-Matrical's working vocabulary is:
-
-- **Matrix** — the owned data and its validated shape.
-- **Lens** — a bounded view or selection over matrix data.
-- **Gear** — a transformation applied through a Lens.
-- **Cog** — context or policy that influences a Gear.
-- **Tag** — metadata or provenance attached to data or an operation.
-
-The intended flow is:
+The normal flow is:
 
 ```text
-Matrix -> Lens -> Gear (+ Cog) -> result (+ Tags)
+Matrix
+  -> Lens / LensMut
+  -> Gear (+ typed Cog)
+  -> ExecutionReport (+ Tags)
 ```
 
-These names are not decorative aliases. Each concept must own a distinct,
-documented responsibility and must preserve the Matrix invariants.
+## Quick start
 
-## Direction
+The recommended everyday import is:
 
-The recommended direction is a semantic matrix-transformation library built on
-proven storage and numerical foundations. Matrical should differentiate itself
-through validated regions, composable views, contextual transformations, and
-provenance—not by reimplementing every linear-algebra kernel.
+```rust
+use matrical::prelude::*;
+```
 
-The campaign begins with a deliberately narrow sequence:
+The canonical beginner workflow is compiled as
+[`examples/r5_quickstart.rs`](examples/r5_quickstart.rs):
 
-1. establish a reproducible build and truthful project baseline;
-2. rebuild `Matrix`, shape, index, region, and error invariants;
-3. introduce safe immutable and mutable Lenses;
-4. introduce testable Gears, Cogs, and Tags;
-5. add examples, property tests, benchmarks, and measured optimization;
-6. evaluate optional parallel and persistent backends only after the sequential
-   contract is sound.
+```rust
+use matrical::prelude::*;
 
-See the [rehabilitation roadmap](docs/roadmap.md) for slice boundaries and exit
-criteria.
+fn main() -> Result<(), MatricalError> {
+    let shape = Shape::new(3, 4)?;
+    let mut matrix = Matrix::from_row_major(
+        shape,
+        vec![
+            0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0,
+        ],
+    )?;
+    let region = Region::new(shape, 1..3, 1..3)?;
+    let tags = vec![
+        Tag::source("r5-quickstart"),
+        Tag::stage(TagStage::Transform),
+        Tag::sequence(1),
+    ];
+
+    {
+        let lens = matrix.lens(region)?;
+        let report = execute_read(&SumGear, &lens, &Cog::new(()), tags.clone())?;
+        println!(
+            "{} {:?} {:?} -> {}",
+            report.gear(),
+            report.effect(),
+            report.region(),
+            report.output()
+        );
+        assert_eq!(*report.output(), 30.0);
+    }
+
+    {
+        let mut lens = matrix.lens_mut(region)?;
+        let report = execute_mut(
+            &AddScalarGear,
+            &mut lens,
+            &Cog::new(ScalarPolicy::new(10.0)),
+            tags,
+        )?;
+        println!(
+            "{} {:?} affected {} values; tags={:?}",
+            report.gear(),
+            report.effect(),
+            report.output(),
+            report.tags()
+        );
+        assert_eq!(*report.output(), 4);
+    }
+
+    assert_eq!(
+        matrix.into_row_major(),
+        vec![
+            0.0, 1.0, 2.0, 3.0, 4.0, 15.0, 16.0, 7.0, 8.0, 19.0, 20.0, 11.0,
+        ]
+    );
+    Ok(())
+}
+```
+
+`Region` bounds are half-open. `Lens` and `LensMut` expose coordinates local to
+the selection, and creating/reading/iterating a Lens does not intentionally
+allocate. `Lens::to_row_major()` is the explicit cloning conversion.
+
+## Public API policy
+
+- `matrical::prelude::*` is the recommended everyday API.
+- named crate-root exports are the supported discoverable API.
+- `matrical::schematics` and `matrical::strategies` group the same supported
+  concepts for deeper navigation.
+- prototype operation/Element/Vector/SQL scaffolding is not part of the learning
+  contract; some compatibility residue remains intentionally hidden while 0.1.0
+  rehabilitation continues.
+
+Matrical does not expose `ndarray` as part of the Matrix/Lens contract and does
+not give a Gear direct Matrix or arbitrary Region-selection authority.
+
+## Where next
+
+- [Getting started](docs/getting-started.md) — task-oriented walkthrough from
+  construction through custom Gears and errors.
+- Crate rustdoc — start at `matrical`, then follow `prelude`, `schematics`, and
+  `strategies`.
+- [Runnable examples](examples/) — including the quickstart and a downstream
+  custom Gear.
+- [Architecture vision](docs/architecture/vision.md) — responsibilities and
+  authority boundaries.
+- [API stability policy](docs/api-stability.md) — what `0.1.0` does and does not
+  promise.
+- [Roadmap](docs/roadmap.md) — campaign gates and future work.
+- [Documentation map](docs/README.md) — testing and development evidence.
+
+Rehabilitation history remains available under `docs/development/`, but normal
+library usage should not require reading it.
 
 ## Design principles
 
 - Correctness before cleverness.
-- Invalid shape and region states should be difficult or impossible to create.
-- Public fallible operations return typed errors rather than panic.
-- Zero-copy views borrow from their source and make that relationship explicit.
-- Concurrency and parallelism require defined semantics and measured benefit.
-- Advanced Rust features are used when they strengthen the contract, not merely
-  to demonstrate sophistication.
-- Dependencies must have an implemented purpose and a bounded feature surface.
-- Documentation, examples, and tests are part of the API.
-
-## Repository guide
-
-- [Documentation map](docs/README.md)
-- [Architecture vision](docs/architecture/vision.md)
-- [Rehabilitation roadmap](docs/roadmap.md)
-- [Active development](docs/active-development.md)
-- [Testing procedures](docs/testing-procedures.md)
-- [Teamlead campaign playbook](docs/teamlead-playbook.md)
-- [Contributing](CONTRIBUTING.md)
-
-## Current limitations
-
-The historical source contains incomplete and placeholder APIs. In particular,
-the current `Matrix` abstraction is not yet a usable two-dimensional container,
-some validation paths do not execute their configured strategies, and core
-matrix tests and examples are absent. The first implementation slices will
-replace or remove those paths rather than claim compatibility with unfinished
-behavior.
-
-No stability, performance, thread-safety, zero-copy, database-integration, or
-release-readiness claim should be inferred until its roadmap gate has passed.
+- Ordinary invalid shape, index, Region, and required-context input is fallible
+  rather than panic-driven.
+- Borrowing and mutation authority stay explicit in Rust types.
+- Convenience must not let a Gear escape its caller-selected Lens.
+- Tags are provenance, never a command channel.
+- Advanced Rust features and performance work are added only when concrete
+  evidence justifies them.
+- Documentation, examples, and downstream-style tests are part of the API.
 
 ## Contributing
 
-Matrical is being rehabilitated through small, focused development sessions and
-reviewable pull requests. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[active campaign record](docs/active-development.md) before selecting work.
+Matrical is still being rehabilitated through focused, reviewable slices. Start
+with [CONTRIBUTING.md](CONTRIBUTING.md), the [active campaign record](docs/active-development.md),
+and the [testing procedures](docs/testing-procedures.md) before selecting work.
 
 ## License
 

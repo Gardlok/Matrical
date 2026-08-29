@@ -1,57 +1,120 @@
-use crossbeam::epoch::Atomic;
+//! Matrical is a semantic matrix-transformation library built around validated
+//! geometry, borrowing selections, typed transformations, contextual policy,
+//! and inert provenance.
+//!
+//! The normal flow is deliberately small:
+//!
+//! ```text
+//! Matrix -> Lens / LensMut -> Gear (+ Cog) -> ExecutionReport (+ Tags)
+//! ```
+//!
+//! A [`Matrix`] owns dense two-dimensional data and a checked [`Shape`]. A
+//! [`Region`] selects a half-open rectangle. [`Lens`] and [`LensMut`] borrow that
+//! selection without exposing the underlying `ndarray` storage. Read-only and
+//! mutating Gears receive only the Lens authority chosen by the caller; they do
+//! not receive a Matrix or the ability to select a broader Region.
+//!
+//! [`Cog`] carries a concrete context or policy type. [`ValidateCog`] validates
+//! that context before a Gear runs. [`Tag`] values are inert provenance attached
+//! to the successful [`ExecutionReport`]; Tags are never passed into the Gear and
+//! cannot steer execution.
+//!
+//! Fallible public operations return [`MatricalError`]. Construction, indexing,
+//! Region validation, context resolution, and policy validation are therefore
+//! ordinary `Result`-based caller boundaries rather than panic-based control
+//! flow.
+//!
+//! For everyday use, import [`prelude`]. The [`schematics`] and [`strategies`]
+//! modules provide the same supported API grouped by concept. Historical
+//! prototype scaffolding is not part of the learning contract.
+//!
+//! # End-to-end example
+//!
+//! ```
+//! use matrical::prelude::*;
+//!
+//! fn main() -> Result<(), MatricalError> {
+//!     let shape = Shape::new(2, 3)?;
+//!     let mut matrix = Matrix::from_row_major(
+//!         shape,
+//!         vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+//!     )?;
+//!     let region = Region::new(shape, 0..2, 1..3)?;
+//!
+//!     {
+//!         let lens = matrix.lens(region)?;
+//!         let report = execute_read(
+//!             &SumGear,
+//!             &lens,
+//!             &Cog::new(()),
+//!             vec![Tag::source("crate-docs")],
+//!         )?;
+//!         assert_eq!(*report.output(), 16.0);
+//!         assert_eq!(report.effect(), GearEffect::ReadOnly);
+//!     }
+//!
+//!     {
+//!         let mut lens = matrix.lens_mut(region)?;
+//!         let report = execute_mut(
+//!             &AddScalarGear,
+//!             &mut lens,
+//!             &Cog::new(ScalarPolicy::new(10.0)),
+//!             vec![Tag::stage(TagStage::Transform)],
+//!         )?;
+//!         assert_eq!(*report.output(), 4);
+//!         assert_eq!(report.effect(), GearEffect::Mutating);
+//!     }
+//!
+//!     assert_eq!(
+//!         matrix.into_row_major(),
+//!         vec![1.0, 12.0, 13.0, 4.0, 15.0, 16.0]
+//!     );
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Matrical remains version `0.1.0`; see the repository's API stability policy
+//! before treating these APIs as a SemVer stability guarantee.
 
 #[cfg(test)]
 mod tests;
 
-// use ndarray::{Array2, Data, DataMut, Shape};
-// use ndarray::{ArrayBase, Axis, Dim, Ix2, OwnedRepr};
-
-use std::any::{Any, TypeId};
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Range;
-use std::sync::{Arc, Mutex};
-use std::error::Error;
-
-use crossbeam::atomic::AtomicCell;
-use crossbeam::queue::SegQueue;
-
 mod error;
 
-use error::AtomicBoolError;
-pub use error::{MatricalError, MatricalErrorType};
-
+/// Historical prototype operations retained for compatibility during the 0.1.0
+/// rehabilitation campaign.
+///
+/// This namespace is intentionally hidden from generated documentation and is
+/// not part of the recommended downstream API.
+#[doc(hidden)]
 pub mod operations;
-pub use operations::*;
-pub use operations::mechanics::*;
 
-pub mod strategies;
-pub use strategies::cog::*;
-pub use strategies::gear::*;
-pub use strategies::lens::*;
-pub use strategies::tag::*;
-
+/// Validated matrix geometry and owned storage.
 pub mod schematics;
-pub use schematics::data::*;
-pub use schematics::element::*;
-pub use schematics::matrix::*;
-pub use schematics::vector::*;
+/// Borrowing views, typed transformations, context, and provenance.
+pub mod strategies;
 
-// Defines a set of methods that can be used to perform various operations on a given data set.
-//
-// pub trait Strategy {
-//     fn prepare(&self, data: &HashMap<String, String>) -> Result<(), String>;
-//     fn execute(&self, data: &HashMap<String, String>) -> Result<(), String>;
-//     fn result(&self) -> Result<(), String>;
-// }
+pub use error::MatricalError;
+#[doc(hidden)]
+pub use error::MatricalErrorType;
 
-// pub trait FunctorHandler<T, F> where F: Fn() -> T {
-//     fn execute(&self, context: &MatrixContext) -> Result<T, MatricalError>;
-// }
-// pub fn perform_execute<T, H>(context: MatrixContext, handler: &H) -> Result<(), MatricalError>
-// where
-//     H: FunctorHandler<T, H> + Fn() -> T
-// {
-//     handler.execute(&context)?
+pub use schematics::{Index, Matrix, Region, Shape};
+pub use strategies::{
+    execute_mut, execute_read, AddScalarGear, ClampGear, ClampPolicy, Cog, ExecutionReport,
+    GearEffect, Lens, LensMut, MutGear, ReadGear, ScalarPolicy, ScaleGear, SumGear, Tag, TagStage,
+    ValidateCog,
+};
 
-// }
+/// Recommended everyday imports for constructing, selecting, transforming, and
+/// inspecting matrices.
+///
+/// The prelude is intentionally curated. It contains the high-frequency R2–R4
+/// API and excludes historical operation scaffolding, prototype Vector/Element
+/// types, `MatrixContext`, dependency types, and implementation details.
+pub mod prelude {
+    pub use crate::{
+        execute_mut, execute_read, AddScalarGear, ClampGear, ClampPolicy, Cog, ExecutionReport,
+        GearEffect, Index, Lens, LensMut, MatricalError, Matrix, MutGear, ReadGear, Region,
+        ScalarPolicy, ScaleGear, Shape, SumGear, Tag, TagStage, ValidateCog,
+    };
+}

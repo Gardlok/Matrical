@@ -6,6 +6,7 @@ use crate::MatricalError;
 /// concrete Rust type, and execution validates that type before a Gear receives
 /// it. No registry, string lookup, or `Any` downcast is involved.
 pub trait ValidateCog {
+    /// Validates context before Gear execution.
     fn validate(&self) -> Result<(), MatricalError>;
 }
 
@@ -46,7 +47,7 @@ impl<C> Cog<C> {
         Self { context }
     }
 
-    /// Returns whether context is present.
+    /// Reports whether typed context is present without resolving it.
     pub const fn is_present(&self) -> bool {
         self.context.is_some()
     }
@@ -65,16 +66,22 @@ impl<C> Cog<C> {
 }
 
 /// A finite scalar policy used by built-in scalar transformation Gears.
+///
+/// Construction itself is infallible so callers can compose policy values
+/// naturally; [`ValidateCog::validate`] rejects non-finite values before a Gear
+/// executes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScalarPolicy {
     value: f64,
 }
 
 impl ScalarPolicy {
+    /// Creates a scalar policy. Non-finite values fail during Cog validation.
     pub const fn new(value: f64) -> Self {
         Self { value }
     }
 
+    /// Returns the configured scalar.
     pub const fn value(self) -> f64 {
         self.value
     }
@@ -91,6 +98,9 @@ impl ValidateCog for ScalarPolicy {
 }
 
 /// Inclusive lower/upper bounds used by [`crate::ClampGear`].
+///
+/// Bounds are validated immediately before Gear execution. Both must be finite
+/// and `minimum <= maximum`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClampPolicy {
     minimum: f64,
@@ -98,14 +108,18 @@ pub struct ClampPolicy {
 }
 
 impl ClampPolicy {
+    /// Creates clamp bounds. Invalid ordering or non-finite values fail during
+    /// Cog validation rather than at construction.
     pub const fn new(minimum: f64, maximum: f64) -> Self {
         Self { minimum, maximum }
     }
 
+    /// Returns the inclusive lower bound.
     pub const fn minimum(self) -> f64 {
         self.minimum
     }
 
+    /// Returns the inclusive upper bound.
     pub const fn maximum(self) -> f64 {
         self.maximum
     }
