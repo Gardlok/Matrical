@@ -22,6 +22,8 @@ not need the development evidence to learn the library.
   position and how breaking changes are handled.
 - [Architecture vision](architecture/vision.md) — Matrix/Lens/Gear/Cog/Tag
   responsibilities, authority boundaries, storage, and deferred abstractions.
+- [Performance](performance.md) — R6 benchmark methodology, measured traversal
+  result, allocation/copy accounting, and parallelism decision.
 - [Rehabilitation roadmap](roadmap.md) — ordered slice goals and exit gates.
 
 ## Testing and contribution
@@ -46,6 +48,7 @@ history. They are review evidence, not prerequisites for ordinary API use.
 - [R3 safe Lens views](development/2026-08-28-r3-safe-lens-views.md)
 - [R4 transformation composition](development/2026-08-28-r4-transform-composition.md)
 - [R5 API learning surface](development/2026-08-29-r5-api-learning-surface.md)
+- [R6 measure and optimize](development/2026-08-29-r6-measure-optimize.md)
 
 Consumer design notes remain under `architecture/consumers/` and inform future
 acceptance criteria without becoming Matrical's domain model.

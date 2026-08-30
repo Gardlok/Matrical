@@ -18,7 +18,9 @@
 
 **Accepted R4 merge:** `6dc0320d1857d1c4fafd538fbf75ae80566887cc`
 
-**Current phase:** R5 active
+**Accepted R5 merge:** `acd15be9d02d27e6189aadedad3620e9558efe8f`
+
+**Current phase:** R6 reviewable; Teamlead/owner acceptance pending
 
 This roadmap is ordered. Later work may be researched early, but implementation
 must not bypass an earlier invariant or acceptance gate.
@@ -82,7 +84,7 @@ Delivered:
   ordered Tags;
 - `execute_read` / `execute_mut` central execution paths;
 - compile-fail evidence that read Gear authority cannot mutate;
-- unchanged lockfile and passing Rust 1.85.0/stable qualification.
+- passing Rust 1.85.0/stable qualification.
 
 R4 preserved the authority rule:
 
@@ -98,70 +100,100 @@ a concrete consumer demonstrates a need.
 
 ## R5 — API ergonomics and learning surface
 
-**Status:** ACTIVE
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
+
+**Accepted merge:**
+
+```text
+commit acd15be9d02d27e6189aadedad3620e9558efe8f
+tree   bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
+```
+
+R5 made the working R2–R4 library understandable without requiring
+rehabilitation history or source inspection. It established the README/crate
+rustdoc learning path, curated prelude and crate-root exports, task-oriented
+getting-started material, runnable quickstart and custom-Gear examples,
+downstream-style public API smoke coverage, explicit API-stability policy, and
+caller-facing documentation of the accepted authority/lifetime rules.
+
+R5 added no performance claims, Criterion, Rayon, backend abstraction,
+persistence, release/tagging, or downstream application integration.
+
+## R6 — Measure, then optimize
+
+**Status:** REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 
 **Baseline:**
 
 ```text
-commit 6dc0320d1857d1c4fafd538fbf75ae80566887cc
-tree   c421102b113b2dc2fc78373677a956e807dee7db
+commit acd15be9d02d27e6189aadedad3620e9558efe8f
+tree   bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
 ```
 
-**Goal:** make the working R2–R4 library understandable and pleasant for a new
-downstream Rust developer without requiring rehabilitation history or source
-inspection.
+**Goal:** establish performance evidence before adding complexity, optimize only
+demonstrated waste, preserve the public API/authority boundary, and make an
+evidence-driven parallelism decision.
 
-Authorized work:
+Delivered candidate work:
 
-- rewrite the README around the working library;
-- add crate-level rustdoc and a compiled end-to-end example;
-- establish one curated `prelude` and explicit crate-root/module policy;
-- classify and hide unfinished prototype exposure where appropriate for 0.1.0;
-- document supported public contracts rather than restating names;
-- add a task-oriented getting-started guide;
-- add runnable quickstart and custom-Gear examples;
-- add a downstream-style public API smoke test;
-- audit naming, builder, conversion, and caller-facing error behavior;
-- document pre-release stability and deprecation policy;
-- preserve and clarify high-value compile-fail misuse examples;
-- perform a documentation-only new-user walkthrough;
-- qualify Rust 1.85.0 and stable with an unchanged lockfile.
+- exact Criterion 0.7.0 development-only dependency with default features
+  disabled and `cargo_bench_support` enabled;
+- `r6_selection` and `r6_transform` benchmark harnesses for three Matrix sizes,
+  five selection patterns, direct ndarray, Lens/LensMut, Gear execution, Lens
+  construction, and explicit copy paths;
+- a pre-optimization baseline showing that fixed-size Lens traversal incorrectly
+  scaled with unrelated parent Matrix cells;
+- an overhead budget declared before source optimization;
+- a targeted private implementation repair that creates checked ndarray Region
+  views and traverses only the selected data;
+- semantic regression coverage for row-major ordering, single-row/column,
+  empty/zero-dimensional selections, selected-only mutation, local access, and
+  foreign-Region rejection;
+- same-machine authoritative before/after Criterion evidence on the owner host;
+- structural allocation/copy accounting;
+- a documented profiling limitation rather than a host-policy workaround;
+- an explicit decision not to add Rayon because the repaired sequential path is
+  already approximately direct-ndarray speed.
+
+Predeclared candidate budgets all pass:
+
+```text
+100000x64 full Lens read / direct ndarray          0.990x <= 3.00x
+100000x64 interior Lens read / direct ndarray      0.921x <= 3.00x
+100000x64 full LensMut / direct ndarray             1.000x <= 3.00x
+100000x64 interior LensMut / direct ndarray         0.892x <= 3.00x
+1024x64 full Gear read / Lens                      0.997x <= 1.25x
+100000x64 full Gear read / Lens                    1.029x <= 1.25x
+1024x64 full Gear mutation / LensMut               1.196x <= 1.25x
+100000x64 full Gear mutation / LensMut             1.062x <= 1.25x
+```
+
+A fixed 4 x 4 Lens read on the largest `100000 x 64` parent moved from
+30.694 ms to 7.242 ns in the authoritative owner-machine run, and candidate
+fixed-selection time remained essentially constant across all three parent
+shapes.
 
 Exit gate:
 
-- README truthfully describes the working R2–R4 library and has a usable quick
-  start;
-- crate rustdoc compiles and teaches the conceptual flow;
-- the recommended API is deliberately curated and the prelude contains no
-  prototype junk;
-- supported public items are documented and legacy exposure is classified;
-- getting-started and both R5 examples are mechanically checked;
-- the public API smoke test uses only recommended downstream imports;
-- naming/builders/conversions/errors have explicit decisions;
-- stability/deprecation policy exists;
-- important compile-fail examples teach the authority/lifetime constraints;
-- R3/R4 authority boundaries are unchanged;
-- documentation alone answers representative new-user questions;
-- Rust 1.85.0 and stable qualification pass with byte-identical `Cargo.lock`.
+- benchmark harness is reproducible and development-only;
+- accepted R5 behavior is measured before source optimization;
+- optimization is tied to an observed bottleneck rather than speculation;
+- fixed-size selection no longer scans unrelated parent cells;
+- dense Lens/LensMut and Gear overhead budgets pass;
+- allocation/copy behavior and profiling limitations are explicit;
+- no unsafe/public-backend/authority broadening is introduced;
+- Rayon or another parallel path is added only if measurement justifies it;
+- Rust 1.85.0 and stable code qualification pass;
+- final review head passes ordinary PR CI;
+- performance claims remain machine-specific and reproducible rather than
+  universal promises.
 
-R5 does not add performance claims, Criterion, Rayon, new dependencies, backend
-abstractions, a GAT provider, dynamic Gear registry, persistence, release/tagging,
-or downstream application integration.
-
-## R6 — Measure, then optimize
-
-**Status:** BLOCKED ON R5 TEAMLEAD/OWNER ACCEPTANCE
-
-**Goal:** establish performance evidence before adding complexity.
-
-Planned work includes representative benchmarks, allocation/copy accounting,
-direct-backend comparison, profiling, an explicit overhead budget, and optional
-parallel execution only when measurement justifies it. R6 owns performance
-claims and optimization decisions; R5 must not begin them.
+See [performance.md](performance.md) and
+[`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md).
 
 ## R7 — Optional backends and integrations
 
-**Status:** BLOCKED ON EARLIER GATES
+**Status:** BLOCKED ON R6 TEAMLEAD/OWNER ACCEPTANCE AND MERGE
 
 Candidate work includes serialization, durable representation, sparse/mapped
 storage, and backend/lending traits only after real implementations justify the
@@ -177,7 +209,7 @@ changelog and migration notes, package/license audit, MSRV/stable/downstream
 qualification, documentation/example audit, benchmark baseline, and explicit
 owner-controlled publication decision.
 
-No version bump, tag, release date, or publication is authorized by R5.
+No version bump, tag, release date, or publication is authorized by R6.
 
 ## Advanced Rust policy
 
@@ -186,11 +218,15 @@ lifetime-generic Lens API clearer with one proven provider. R4 added an authorit
 reason to keep that decision: a generic provider passed to a Gear could grant
 Region-selection authority broader than the caller-selected Lens.
 
-R5 therefore documents the accepted choice rather than reopening it. A future
-GAT/HRTB abstraction requires a concrete composability problem that cannot be
-expressed as clearly with the existing capability boundary.
+R6 does not reopen that public abstraction. Its optimization is private:
+Lens/LensMut retain the same lifetime-generic public surface while their internal
+borrow now points at the already selected ndarray view.
+
+A future GAT/HRTB abstraction still requires a concrete composability problem
+that cannot be expressed as clearly with the existing capability boundary.
 
 ## Cross-cutting requirements
 
-Testing, documentation, examples, dependency review, and authority analysis are
-part of every functional slice. They are not deferred cleanup.
+Testing, documentation, examples, dependency review, performance evidence, and
+authority analysis are part of every functional slice. They are not deferred
+cleanup.
