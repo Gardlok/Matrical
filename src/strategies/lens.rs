@@ -1,4 +1,5 @@
 use crate::{Index, MatricalError, Matrix, Region, Shape};
+use ndarray::{ArrayView2, ArrayViewMut2};
 
 /// An immutable, zero-copy rectangular borrowing view over a [`Matrix`].
 ///
@@ -43,17 +44,17 @@ use crate::{Index, MatricalError, Matrix, Region, Shape};
 /// }
 /// ```
 pub struct Lens<'a, T> {
-    matrix: &'a Matrix<T>,
+    values: ArrayView2<'a, T>,
     region: Region,
     shape: Shape,
 }
 
 impl<'a, T> Lens<'a, T> {
     fn new(matrix: &'a Matrix<T>, region: Region) -> Result<Self, MatricalError> {
-        let region = matrix.validate_region(region)?;
+        let values = matrix.checked_region_view(region)?;
         let shape = Shape::new(region.rows(), region.columns())?;
         Ok(Self {
-            matrix,
+            values,
             region,
             shape,
         })
@@ -87,13 +88,14 @@ impl<'a, T> Lens<'a, T> {
 
     /// Returns a checked element reference using Lens-local coordinates.
     pub fn get(&self, index: Index) -> Result<&T, MatricalError> {
-        let parent = self.parent_index(index)?;
-        self.matrix.get(parent)
+        self.values
+            .get((index.row(), index.column()))
+            .ok_or(MatricalError::IndexOutOfBounds)
     }
 
     /// Iterates selected values in deterministic logical row-major order.
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        selected_iter(self.matrix.iter(), self.matrix.columns(), self.region)
+        self.values.iter()
     }
 
     /// Clones selected values into an owned row-major vector.
@@ -104,17 +106,6 @@ impl<'a, T> Lens<'a, T> {
         T: Clone,
     {
         self.iter().cloned().collect()
-    }
-
-    fn parent_index(&self, index: Index) -> Result<Index, MatricalError> {
-        if index.row() >= self.rows() || index.column() >= self.columns() {
-            return Err(MatricalError::IndexOutOfBounds);
-        }
-
-        Ok(Index::new(
-            self.region.start_row() + index.row(),
-            self.region.start_column() + index.column(),
-        ))
     }
 }
 
@@ -148,17 +139,17 @@ impl<'a, T> Lens<'a, T> {
 /// }
 /// ```
 pub struct LensMut<'a, T> {
-    matrix: &'a mut Matrix<T>,
+    values: ArrayViewMut2<'a, T>,
     region: Region,
     shape: Shape,
 }
 
 impl<'a, T> LensMut<'a, T> {
     fn new(matrix: &'a mut Matrix<T>, region: Region) -> Result<Self, MatricalError> {
-        let region = matrix.validate_region(region)?;
         let shape = Shape::new(region.rows(), region.columns())?;
+        let values = matrix.checked_region_view_mut(region)?;
         Ok(Self {
-            matrix,
+            values,
             region,
             shape,
         })
@@ -192,26 +183,26 @@ impl<'a, T> LensMut<'a, T> {
 
     /// Returns a checked immutable element reference using Lens-local coordinates.
     pub fn get(&self, index: Index) -> Result<&T, MatricalError> {
-        let parent = self.parent_index(index)?;
-        self.matrix.get(parent)
+        self.values
+            .get((index.row(), index.column()))
+            .ok_or(MatricalError::IndexOutOfBounds)
     }
 
     /// Returns a checked mutable element reference using Lens-local coordinates.
     pub fn get_mut(&mut self, index: Index) -> Result<&mut T, MatricalError> {
-        let parent = self.parent_index(index)?;
-        self.matrix.get_mut(parent)
+        self.values
+            .get_mut((index.row(), index.column()))
+            .ok_or(MatricalError::IndexOutOfBounds)
     }
 
     /// Iterates selected values immutably in logical row-major order.
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        selected_iter(self.matrix.iter(), self.matrix.columns(), self.region)
+        self.values.iter()
     }
 
     /// Iterates selected values mutably in logical row-major order.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        let parent_columns = self.matrix.columns();
-        let region = self.region;
-        selected_iter(self.matrix.iter_mut(), parent_columns, region)
+        self.values.iter_mut()
     }
 
     /// Clones selected values into an owned row-major vector.
@@ -223,40 +214,6 @@ impl<'a, T> LensMut<'a, T> {
     {
         self.iter().cloned().collect()
     }
-
-    fn parent_index(&self, index: Index) -> Result<Index, MatricalError> {
-        if index.row() >= self.rows() || index.column() >= self.columns() {
-            return Err(MatricalError::IndexOutOfBounds);
-        }
-
-        Ok(Index::new(
-            self.region.start_row() + index.row(),
-            self.region.start_column() + index.column(),
-        ))
-    }
-}
-
-fn selected_iter<I>(
-    iter: I,
-    parent_columns: usize,
-    region: Region,
-) -> impl Iterator<Item = I::Item>
-where
-    I: Iterator,
-{
-    iter.enumerate().filter_map(move |(offset, value)| {
-        if parent_columns == 0 {
-            return None;
-        }
-
-        let row = offset / parent_columns;
-        let column = offset % parent_columns;
-        (row >= region.start_row()
-            && row < region.end_row()
-            && column >= region.start_column()
-            && column < region.end_column())
-        .then_some(value)
-    })
 }
 
 impl<T> Matrix<T> {

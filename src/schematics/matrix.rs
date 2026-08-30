@@ -1,5 +1,5 @@
 use crate::{MatricalError, Tag};
-use ndarray::Array2;
+use ndarray::{s, Array2, ArrayView2, ArrayViewMut2};
 use std::any::Any;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -276,6 +276,28 @@ impl<T> Matrix<T> {
             region.start_column(),
             region.end_column(),
         )
+    }
+
+    pub(crate) fn checked_region_view(
+        &self,
+        region: Region,
+    ) -> Result<ArrayView2<'_, T>, MatricalError> {
+        let region = self.validate_region(region)?;
+        Ok(self.values.slice(s![
+            region.start_row()..region.end_row(),
+            region.start_column()..region.end_column()
+        ]))
+    }
+
+    pub(crate) fn checked_region_view_mut(
+        &mut self,
+        region: Region,
+    ) -> Result<ArrayViewMut2<'_, T>, MatricalError> {
+        let region = self.validate_region(region)?;
+        Ok(self.values.slice_mut(s![
+            region.start_row()..region.end_row(),
+            region.start_column()..region.end_column()
+        ]))
     }
 
     /// Consumes the Matrix and returns values in construction/iteration order.

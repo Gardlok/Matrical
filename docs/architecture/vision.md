@@ -1,6 +1,6 @@
 # Matrical architecture vision
 
-**Status:** accepted rehabilitation direction; R4 owner accepted; R5 learning surface active
+**Status:** accepted rehabilitation direction through R5; R6 performance candidate reviewable
 
 ## Product position
 
@@ -55,22 +55,28 @@ mutable counterpart:
 
 ```text
 Matrix<T> owns data
-Lens<'a, T>    borrows &'a Matrix<T>
-LensMut<'a, T> borrows &'a mut Matrix<T>
+Lens<'a, T>    borrows selected Matrix storage immutably
+LensMut<'a, T> borrows selected Matrix storage mutably
 ```
 
 The borrow checker prevents a Lens from outliving its Matrix and gives a
-`LensMut` exclusive access to the parent Matrix for its lifetime. Matrical does
-not add unsafe disjoint splitting or runtime overlap tracking.
+`LensMut` exclusive mutable borrow of the parent Matrix for its lifetime.
+Matrical does not add unsafe disjoint splitting or runtime overlap tracking.
 
-A Lens stores the selected Region in parent coordinates but exposes checked
+A Lens records the selected Region in parent coordinates but exposes checked
 `Index` access in Lens-local coordinates. Local `(0, 0)` names the Region's
 upper-left selected element.
 
+R6 changed only the private representation: after Region validation, Lens/LensMut
+hold an ndarray view of exactly the selected rectangle rather than holding the
+whole Matrix and filtering parent-wide iteration. The public type names,
+lifetimes, methods, error behavior, Region semantics, and Gear authority boundary
+remain unchanged. ndarray view types are not exposed publicly.
+
 Lens construction, row/column selection, checked access, and iteration do not
-intentionally allocate. Logical iteration is row-major within the selected
-rectangle and makes no physical-contiguity promise. `to_row_major()` is the
-explicit allocating `T: Clone` conversion.
+require selected-value copies or heap allocation. Logical iteration is row-major
+within the selected rectangle and makes no physical-contiguity promise.
+`to_row_major()` is the explicit allocating `T: Clone` conversion.
 
 ### Gear
 
@@ -131,7 +137,7 @@ around failed transformations.
 
 ## Public learning surface
 
-R5 makes the conceptual architecture the documentation map instead of exposing
+R5 made the conceptual architecture the documentation map instead of exposing
 prototype-era module history as the normal API.
 
 The supported discovery policy is:
@@ -155,8 +161,7 @@ during 0.1.0 rehabilitation when compatibility is useful, but it is not part of
 the learning contract. Historical SQL, Element, Vector, `MatrixContext`,
 `AtomicBoolError`, and raw dependency types are not prelude exports.
 
-This curation narrows accidental prototype exposure without changing the
-accepted R2–R4 concepts.
+R6 does not alter this public learning surface.
 
 ## Layering
 
@@ -169,6 +174,9 @@ matrical-view
 
 matrical-transform
   ReadGear, MutGear, Cog, ValidateCog, Tag, ExecutionReport
+
+development measurement
+  Criterion benchmark harnesses; no runtime authority
 
 optional later integrations
   measurement-driven parallelism, serialization, persistence, specialized storage
@@ -185,8 +193,9 @@ boundaries, not a requirement to split the workspace.
 - Region ordering is half-open and empty-selection behavior is explicit.
 - Ordinary invalid public input is typed and fallible rather than panic-driven.
 - Matrix and Lens logical iteration preserve deterministic row-major order.
-- A Lens cannot outlive the Matrix borrow it contains.
-- A mutable Lens has exclusive access to its parent Matrix for its lifetime.
+- A Lens cannot outlive the Matrix storage it borrows.
+- A mutable Lens has exclusive mutable access to its parent Matrix for its
+  lifetime.
 - A read Gear receives no mutable Lens capability.
 - A mutating Gear cannot access values outside its supplied LensMut Region.
 - Missing required Cog context is a typed failure.
@@ -194,13 +203,15 @@ boundaries, not a requirement to split the workspace.
 - Tag/provenance cannot mutate Matrix data or select an operation by side
   channel.
 - Convenience APIs must not silently broaden authority.
+- Performance optimization must not expose the private ndarray backend or weaken
+  checked Region semantics.
 
 ## Constructors, builders, and conversions
 
 The accepted simple types use explicit typed constructors rather than builders.
-`Shape`, `Region`, `Cog`, `ScalarPolicy`, `ClampPolicy`, and `Tag` do not currently
-have enough optional configuration or ordering complexity to justify builder
-ceremony.
+`Shape`, `Region`, `Cog`, `ScalarPolicy`, `ClampPolicy`, and `Tag` do not
+currently have enough optional configuration or ordering complexity to justify
+builder ceremony.
 
 Conversion names intentionally communicate ownership/allocation:
 
@@ -214,8 +225,9 @@ Matrical does not add `From`/`Into` implementations that conceal fallibility.
 
 ## Storage and missingness
 
-The accepted first dense storage is private `ndarray::Array2<T>`. Lens borrows
-the checked Matrix wrapper and Gear receives only Lens capabilities.
+The accepted first dense storage is private `ndarray::Array2<T>`. R6 also uses
+private ndarray view types internally to represent an already validated Lens
+selection. This is an implementation detail, not a new public backend contract.
 
 A validity/missingness mask is not intrinsic Matrix storage. Missingness belongs
 in an explicit paired structure, wrapper, or downstream domain type unless a
@@ -238,9 +250,10 @@ caller: Matrix -> Lens / LensMut
 Gear:   receives that exact Lens / LensMut
 ```
 
-R5 documents this choice and does not reopen it for ergonomic novelty. A future
-GAT/HRTB abstraction requires a concrete composability failure that justifies the
-extra public complexity without weakening least authority.
+R6 improves the private traversal representation without reopening that public
+abstraction. A future GAT/HRTB abstraction still requires a concrete
+composability failure that justifies the extra public complexity without
+weakening least authority.
 
 ## Dynamic dispatch
 
@@ -252,12 +265,32 @@ them.
 
 ## Concurrency and performance
 
-The initial contract is deterministic and sequential. Thread-safe containers do
-not by themselves define safe matrix-level concurrency.
+The accepted execution contract remains deterministic and sequential. Thread-safe
+containers do not by themselves define safe matrix-level concurrency.
 
-R6 owns measurement and optimization. R5 makes no benchmark, throughput, or
-parallel-speedup claims. Zero-copy wording in R5 refers only to Lens borrowing
-operations; `to_row_major()` explicitly allocates and clones values.
+R6 established a Criterion benchmark harness and found one dominant sequential
+defect: Lens/LensMut traversed the full parent Matrix and filtered for selected
+Region membership. The private checked-view repair removes that parent-wide scan.
+
+On the authoritative owner-machine run, candidate dense traversal is already
+approximately equivalent to direct ndarray traversal:
+
+```text
+100000x64 full Lens read / direct ndarray       0.990x
+100000x64 full LensMut transform / direct       1.000x
+100000x64 full Gear read / Lens                 1.029x
+100000x64 full Gear mutation / LensMut          1.062x
+```
+
+A fixed 4 x 4 Lens read stays near 7.3 ns across parents ranging from `32 x 24`
+to `100000 x 64`; its cost no longer scales with unrelated parent cells.
+
+R6 therefore does not add Rayon. Parallel execution remains optional future work
+only when a concrete workload demonstrates enough per-element computation to
+justify scheduling, threshold policy, and added concurrency surface.
+
+See [performance.md](../performance.md) for methodology, exact measurements,
+allocation/copy accounting, and limitations.
 
 ## Error contract
 
@@ -269,12 +302,16 @@ classified rather than being presented as richer errors than they are.
 
 ## Dependency policy
 
-R5 changes no dependency metadata or lockfile. ndarray remains the private dense
-storage backend; Crossbeam remains historical non-Matrix residue outside this
-slice.
+ndarray remains the private dense storage backend; Crossbeam remains historical
+non-Matrix residue outside R6.
 
-Optional database, serialization, parallelism, and benchmarking capabilities
-must earn explicit features and tests later.
+R6 adds exact Criterion 0.7.0 only under `[dev-dependencies]`, with default
+features disabled and `cargo_bench_support` enabled. Criterion does not grant
+runtime authority and is not a normal Matrical dependency.
+
+Rayon is not added. Optional database, serialization, parallelism, and
+specialized-backend capabilities must earn explicit design/feature/test work
+later.
 
 ## Non-goals for the rehabilitation core
 
@@ -287,8 +324,9 @@ must earn explicit features and tests later.
 - Runtime Gear registries or DI containers without a concrete consumer need.
 - Tags as SQL/query/command envelopes.
 - Preserving unfinished 0.1.0 prototype APIs as a compatibility contract.
-- Using advanced Rust syntax without a correctness, usability, or measured
-  performance benefit.
+- Using advanced Rust syntax or concurrency machinery without a correctness,
+  usability, or measured performance benefit.
+- Treating benchmark numbers from one host as universal throughput guarantees.
 
 ## Downstream consumers
 

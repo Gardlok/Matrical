@@ -1,25 +1,24 @@
 # Matrical active development
 
-**Last updated:** 2026-08-29
+**Last updated:** 2026-08-30
 
 ## Accepted campaign baseline
 
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     6dc0320d1857d1c4fafd538fbf75ae80566887cc
-tree       c421102b113b2dc2fc78373677a956e807dee7db
+commit     acd15be9d02d27e6189aadedad3620e9558efe8f
+tree       bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
 version    0.1.0
 ```
 
-Commit `6dc0320d1857d1c4fafd538fbf75ae80566887cc` merged PR #9 and the
-owner-accepted R4 transformation result. Its second parent,
-`1d84483e5063845b0d04c2ced5b7e6335381d951`, is the accepted final R4
-candidate. Earlier accepted rehabilitation merges remain recorded in the
-[roadmap](roadmap.md) and development evidence.
+Commit `acd15be9d02d27e6189aadedad3620e9558efe8f` merged PR #10 and the
+owner-accepted R5 public-learning-surface result. Its second parent,
+`bab1a12ae92f5024e423ac55183e4e78d756b8fd`, is the accepted final R5
+candidate.
 
-The accepted baseline is a qualified rehabilitation checkpoint, not a claim of
-release or production readiness.
+The accepted baseline is a qualified rehabilitation checkpoint, not a release or
+production-readiness claim.
 
 ## Active campaign
 
@@ -29,13 +28,15 @@ R1: COMPLETE — OWNER ACCEPTED
 R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
 R4: COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
-R5: ACTIVE
+R5: COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
+R6: REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
 ```
 
-R5 starts from the exact baseline above on
-`rehab/r5-api-learning-surface`. Its mission is to make the accepted R2–R4 API
-understandable and pleasant for a new downstream Rust developer without making
-them read rehabilitation history or implementation source.
+R6 starts from the exact accepted R5 baseline above on
+`rehab/r6-measure-optimize`. Its mission is to establish representative
+performance evidence first, optimize only demonstrated waste, account for
+allocation/copy behavior, decide whether parallel execution is justified, and
+preserve the accepted public API and capability boundary.
 
 The conceptual flow remains:
 
@@ -46,11 +47,6 @@ Matrix
   -> ExecutionReport (+ Tags)
 ```
 
-R5 may curate imports, module visibility, documentation, examples, caller-facing
-error wording, and pre-release prototype exposure. It must not weaken the Lens
-capability boundary, add new transformation authority, begin R6 performance
-work, or create a release claim.
-
 ## Accepted owner decisions
 
 1. Matrical is a semantic matrix-transformation library rather than a replacement
@@ -59,22 +55,25 @@ work, or create a release claim.
 3. Rust 1.85.0 is the initial MSRV.
 4. The unfinished historical 0.1.0 prototype has no compatibility promise.
 5. The first rehabilitated release remains an owner-gated future milestone; no
-   release, tag, or publication is authorized by R5.
+   release, tag, or publication is authorized by R6.
 6. The root `Cargo.lock` remains committed for reproducible campaign and CI
    qualification.
-7. Rayon, Criterion, backend abstraction, persistence, and broad optimization
-   remain deferred to later evidence-driven phases.
-8. Serde, SurrealDB, dynamic Gear registries, DI containers, and speculative
-   GAT/HRTB ceremony remain outside R5.
+7. Criterion 0.7.0 is accepted in R6 as a development-only benchmark dependency
+   with default features disabled and only `cargo_bench_support` enabled.
+8. Rayon remains deferred: the measured R6 sequential repair brings dense
+   Lens/LensMut traversal to approximately direct-ndarray performance, so R6 has
+   no evidence that parallelism justifies added runtime/concurrency complexity.
+9. Backend abstraction, persistence, serialization, dynamic Gear registries, DI
+   containers, and speculative GAT/HRTB ceremony remain outside R6.
 
-## Accepted R2–R4 result
+## Accepted R2–R5 result
 
 ### Core geometry and storage
 
 R2 established checked `Shape`, `Index`, half-open `Region`, owned `Matrix<T>`,
-and structural `MatricalError` boundaries. Zero-sized shapes are valid, row-major
-construction is exact, ordinary indexing is checked, and `ndarray` remains
-private.
+and structural `MatricalError` boundaries. Zero-sized shapes are valid,
+row-major construction is exact, ordinary indexing is checked, and `ndarray`
+remains private.
 
 Preserved evidence:
 [`development/2026-08-28-r2-core-invariants.md`](development/2026-08-28-r2-core-invariants.md).
@@ -83,8 +82,8 @@ Preserved evidence:
 
 R3 established `Lens<'a, T>` and `LensMut<'a, T>`. The caller chooses a Region,
 Lens indexing is local to that selection, and Rust lifetimes enforce parent
-lifetime and exclusive mutable borrowing. Construction/access/iteration do not
-intentionally allocate; `to_row_major()` is the explicit cloning conversion.
+lifetime and exclusive mutable borrowing. `to_row_major()` is the explicit
+cloning conversion.
 
 Preserved evidence:
 [`development/2026-08-28-r3-safe-lens-views.md`](development/2026-08-28-r3-safe-lens-views.md).
@@ -100,49 +99,89 @@ only the supplied Lens capability and cannot use Tags as an execution channel.
 Preserved evidence:
 [`development/2026-08-28-r4-transform-composition.md`](development/2026-08-28-r4-transform-composition.md).
 
-## R5 learning-surface direction
+### Public learning surface
 
-R5 establishes three intentional discovery layers:
+R5 established the recommended `matrical::prelude::*`, explicit supported
+crate-root exports, task-oriented getting-started material, runnable quickstart
+and custom-Gear examples, public API smoke coverage, API-stability policy, and
+documentation that teaches the accepted Matrix/Lens/Gear/Cog/Tag flow without
+requiring rehabilitation history.
+
+Preserved evidence:
+[`development/2026-08-29-r5-api-learning-surface.md`](development/2026-08-29-r5-api-learning-surface.md).
+
+## R6 measured result
+
+The permanent R6 benchmark harness was established at:
 
 ```text
-matrical::prelude::*
-  recommended everyday imports
-
-matrical::{...}
-  named supported crate-root exports
-
-matrical::schematics / matrical::strategies
-  deeper conceptual organization
+commit 91d1724a70c2af7ff5bd077dd8625b73302e0939
+tree   988e5a5638dd6267d765c150df7a1f2a400941bc
 ```
 
-Historical SQL/Element/Vector and operation scaffolding is not a parallel public
-API. Compatibility residue may remain hidden while the crate is still 0.1.0,
-but normal users should not encounter it in the primary rustdoc path.
+That commit contains accepted R5 source plus the R6 Criterion harness. Preliminary
+measurement showed fixed 4 x 4 Lens traversal scaling with the entire parent
+Matrix because the inherited implementation enumerated/filter-mapped every parent
+element.
 
-The task-oriented entry points are:
+The source repair at `db1c498edac854b59065cdcf1bfa5595334292aa`
+replaced that scan with a checked private ndarray Region view. Regression
+coverage at `9a9f4199d28da4294bdf0973cb7579e4add5d78f` preserves full/interior,
+single-row/column, empty/zero-dimension, row-major mutation, local indexing, and
+foreign-Region failure semantics.
 
-- repository [README](../README.md);
-- [getting-started guide](getting-started.md);
-- generated crate rustdoc;
-- runnable `examples/r5_quickstart.rs`;
-- runnable `examples/r5_custom_gear.rs`;
-- [API stability policy](api-stability.md).
+The public method signatures and caller-selected Lens/LensMut authority boundary
+are unchanged. No unsafe code or Rayon was added.
+
+### Authoritative performance gate
+
+One consolidated owner-machine run on Orion measured the baseline harness commit
+and optimized candidate with identical benchmark code, lockfile, stable toolchain,
+and host.
+
+Representative result:
+
+```text
+fixed 4x4 Lens read, parent 100000x64
+baseline  30.694 ms
+candidate  7.242 ns
+speedup    4,238,449x
+
+candidate fixed-4x4 parent scaling:
+32x24       7.341 ns
+1024x64     7.329 ns
+100000x64   7.242 ns
+```
+
+Every predeclared dense-Lens and Gear-over-Lens budget passed. Full details,
+environment, allocation/copy accounting, profiling limitation, and the Rayon
+decision are in [performance.md](performance.md).
 
 ## Residual historical debt
 
-R5 does not reconstruct the historical operation framework, Vector/Element/SQL
-prototypes, detached `MatrixContext`, or broad dependency residue. Those paths
-remain historical scaffolding and are not evidence that the recommended API
-requires them.
+R6 does not reconstruct the historical operation framework, Vector/Element/SQL
+prototypes, detached `MatrixContext`, broad dependency residue, or optional
+backends. Those remain classified legacy/future work rather than being folded
+into the performance slice.
+
+`perf` profiling was unavailable on both evidence hosts for different reasons:
+the shared GitHub runner denied hardware counters and the owner machine did not
+have the `perf` executable installed. R6 did not change host security policy or
+install system tooling solely for profiling. Benchmark scaling plus source
+inspection independently identified the parent-wide traversal defect.
 
 ## Current gate
 
-R5 is active from baseline
-`6dc0320d1857d1c4fafd538fbf75ae80566887cc`, tree
-`c421102b113b2dc2fc78373677a956e807dee7db`.
+R6 implementation, semantic regression coverage, two-lane code qualification,
+and the authoritative owner-machine before/after measurement are complete.
 
-The detailed implementation and exact-head qualification record is
-[`development/2026-08-29-r5-api-learning-surface.md`](development/2026-08-29-r5-api-learning-surface.md).
+The detailed record is
+[`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md).
 
-R6 remains blocked until the R5 candidate receives Teamlead/owner acceptance and
-is merged.
+```text
+R6: REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+R7: BLOCKED UNTIL R6 IS ACCEPTED AND MERGED
+```
+
+No R7 implementation, version bump, tag, release, publication, backend
+abstraction, or parallel runtime path is authorized by this R6 candidate.
