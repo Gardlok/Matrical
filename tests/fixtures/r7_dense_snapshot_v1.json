@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "rows": 2,
+  "columns": 3,
+  "row_major": [1, 2, 3, 4, 5, 6]
+}
