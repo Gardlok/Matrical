@@ -1,14 +1,14 @@
 # Matrical
 
-**Status: rehabilitated core working; API-learning surface active; version 0.1.0**
+**Status: R1-R6 owner accepted; R7-A versioned snapshot interchange active; version 0.1.0**
 
 Matrical is a semantic matrix-transformation library built around validated
 geometry, borrowing selections, typed transformations, contextual policy, and
 provenance. It uses a private dense `ndarray::Array2<T>` backend while exposing a
-Matrical-owned contract for shape, selection, transformation authority, and
-execution reporting.
+Matrical-owned contract for shape, selection, transformation authority,
+execution reporting, and explicit dense snapshots.
 
-The rehabilitated R2–R4 core is working and qualified on the declared Rust 1.85
+The rehabilitated R2–R6 core is working and qualified on the declared Rust 1.85
 MSRV and current stable through the repository qualification lanes. Matrical is
 still `0.1.0`: the public API may change before the first rehabilitated release,
 and this repository is **not** yet claiming production or release readiness.
@@ -26,8 +26,10 @@ and this repository is **not** yet claiming production or release readiness.
   Tags never control execution.
 - **ExecutionReport** — Gear identity, exact Region, effect class, typed output,
   and ordered Tags for a successful execution.
+- **MatrixSnapshot** — inert, versioned dense row-major interchange data that can
+  cross a boundary without exposing ndarray or acquiring live storage authority.
 
-The normal flow is:
+The normal execution flow is:
 
 ```text
 Matrix
@@ -110,27 +112,44 @@ fn main() -> Result<(), MatricalError> {
 the selection, and creating/reading/iterating a Lens does not intentionally
 allocate. `Lens::to_row_major()` is the explicit cloning conversion.
 
+## Optional dense interchange
+
+Need to move dense Matrix data across a process, repository, storage, or
+integration boundary? Use the crate-root `MatrixSnapshot` API and, when a Serde
+format is appropriate, opt into the `serde` feature. Snapshot fields use stable
+`u64` dimensions and logical row-major values; checked reconstruction reuses
+Matrical's existing Shape/Matrix invariants.
+
+`MatrixSnapshot` is intentionally not in `matrical::prelude::*`, and Matrical does
+not own file/database/network transport. See [Interchange](docs/interchange.md)
+for schema v1, versioning, copy/ownership behavior, format limitations, and the
+caller-owned transport boundary.
+
 ## Public API policy
 
 - `matrical::prelude::*` is the recommended everyday API.
 - named crate-root exports are the supported discoverable API.
 - `matrical::schematics` and `matrical::strategies` group the same supported
   concepts for deeper navigation.
+- `matrical::snapshot` is the specialized interchange namespace and is excluded
+  from the everyday prelude deliberately.
 - prototype operation/Element/Vector/SQL scaffolding is not part of the learning
   contract; some compatibility residue remains intentionally hidden while 0.1.0
   rehabilitation continues.
 
-Matrical does not expose `ndarray` as part of the Matrix/Lens contract and does
-not give a Gear direct Matrix or arbitrary Region-selection authority.
+Matrical does not expose `ndarray` as part of the Matrix/Lens/snapshot contract
+and does not give a Gear direct Matrix or arbitrary Region-selection authority.
 
 ## Where next
 
 - [Getting started](docs/getting-started.md) — task-oriented walkthrough from
   construction through custom Gears and errors.
-- Crate rustdoc — start at `matrical`, then follow `prelude`, `schematics`, and
-  `strategies`.
-- [Runnable examples](examples/) — including the quickstart and a downstream
-  custom Gear.
+- [Interchange](docs/interchange.md) — versioned dense snapshots and optional
+  Serde support.
+- Crate rustdoc — start at `matrical`, then follow `prelude`, `schematics`,
+  `strategies`, or the specialized `snapshot` module.
+- [Runnable examples](examples/) — including the quickstart, a downstream custom
+  Gear, and the feature-gated snapshot example.
 - [Architecture vision](docs/architecture/vision.md) — responsibilities and
   authority boundaries.
 - [API stability policy](docs/api-stability.md) — what `0.1.0` does and does not
@@ -144,11 +163,12 @@ library usage should not require reading it.
 ## Design principles
 
 - Correctness before cleverness.
-- Ordinary invalid shape, index, Region, and required-context input is fallible
-  rather than panic-driven.
+- Ordinary invalid shape, index, Region, required-context, and snapshot
+  reconstruction input is fallible rather than panic-driven.
 - Borrowing and mutation authority stay explicit in Rust types.
 - Convenience must not let a Gear escape its caller-selected Lens.
 - Tags are provenance, never a command channel.
+- Interchange data is inert; callers own transport and persistence authority.
 - Advanced Rust features and performance work are added only when concrete
   evidence justifies them.
 - Documentation, examples, and downstream-style tests are part of the API.

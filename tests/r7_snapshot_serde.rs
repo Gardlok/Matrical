@@ -42,13 +42,13 @@ fn unsupported_version_fails_closed_during_reconstruction() {
     }))
     .unwrap();
 
-    assert_eq!(
+    assert!(matches!(
         snapshot.into_matrix(),
         Err(MatricalError::UnsupportedSnapshotVersion {
             found: 2,
             supported: DENSE_SNAPSHOT_VERSION,
         })
-    );
+    ));
 }
 
 #[test]
@@ -61,13 +61,13 @@ fn malformed_row_major_length_uses_existing_structural_error() {
     }))
     .unwrap();
 
-    assert_eq!(
+    assert!(matches!(
         snapshot.into_matrix(),
         Err(MatricalError::RowMajorLengthMismatch {
             expected: 6,
             actual: 2,
         })
-    );
+    ));
 }
 
 #[test]
@@ -80,7 +80,10 @@ fn oversized_or_overflowing_dimensions_fail_without_truncation() {
     }))
     .unwrap();
 
-    let error = snapshot.into_matrix().unwrap_err();
+    let error = match snapshot.into_matrix() {
+        Err(error) => error,
+        Ok(_) => panic!("oversized snapshot must not reconstruct"),
+    };
 
     #[cfg(target_pointer_width = "64")]
     assert!(matches!(
