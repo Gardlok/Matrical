@@ -7,60 +7,47 @@
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
-tree       919f8f800f1ffa3b4750def03f803a807ff25179
+commit     f28fc380926c8175ff9b5faeb092be5bd7426245
+tree       5d8bac5a769ba0fc3b77dc4b107ccd90d6c0dd86
 version    0.1.0
+MSRV       Rust 1.85.0
 ```
 
-Commit `6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773` merged PR #11 and the
-owner-accepted R6 dense-traversal performance result.
+Commit `f28fc380926c8175ff9b5faeb092be5bd7426245` merged PR #12 and the
+owner-accepted R7-A versioned dense snapshot result.
 
-The accepted baseline is a qualified rehabilitation checkpoint, not a release or
-production-readiness claim.
+The accepted baseline is a qualified rehabilitation checkpoint, not a release,
+tag, GitHub Release, crates.io publication, or production-readiness claim.
 
 ## Active campaign
 
 ```text
-R0: COMPLETE — OWNER ACCEPTED
-R1: COMPLETE — OWNER ACCEPTED
-R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
-R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
-R4: COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
-R5: COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
-R6: COMPLETE — OWNER ACCEPTED — MERGED IN PR #11
-R7: ACTIVE
-R7-A: AUTHORIZED — VERSIONED DENSE SNAPSHOT INTERCHANGE
-R7-B: BLOCKED ON R7-A ACCEPTANCE/MERGE
-R8: BLOCKED ON R7 COMPLETION
+R0:   COMPLETE — OWNER ACCEPTED
+R1:   COMPLETE — OWNER ACCEPTED
+R2:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
+R3:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
+R4:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
+R5:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
+R6:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #11
+R7-A: COMPLETE — OWNER ACCEPTED — MERGED IN PR #12
+R7-B: DEFERRED — no demonstrated second-provider/integration need
+R7:   COMPLETE — OWNER ACCEPTED
+R8-A: AUTHORIZED — RELEASE-CANDIDATE QUALIFICATION
 ```
 
-R7-A starts from the exact accepted R6 baseline above on
-`rehab/r7a-versioned-snapshot`. Its bounded mission is to add a Matrical-owned,
-versioned dense snapshot DTO, checked reconstruction, an optional Serde feature,
-a committed integer JSON fixture/example, dual default/all-feature CI coverage,
-and documentation of the caller-owned transport boundary.
+R7-B's deferral is evidence-based and temporary in meaning: sparse/mapped
+storage, another live provider, or an external integration was not justified by
+a concrete current need. Those possibilities were not rejected forever and may
+be reconsidered when a real second-provider or integration problem exists.
 
-R7-A does not authorize sparse/mapped storage, persistence engines, filesystem or
-network APIs, backend/provider traits, GAT/HRTB provider abstractions, Strustegy
-dependencies, release qualification, or publication.
+R8-A starts from the exact accepted R7 baseline above on
+`rehab/r8a-release-candidate`. Its bounded mission is to determine, with
+mechanical evidence, whether the accepted library can be packaged, documented,
+consumed from its package artifact, and versioned as a real Rust release without
+repository-only assumptions.
 
-The execution flow remains:
-
-```text
-Matrix
-  -> Lens / LensMut
-  -> Gear (+ typed Cog)
-  -> ExecutionReport (+ Tags)
-```
-
-R7-A adds a separate inert interchange path:
-
-```text
-Matrix<T>
-  -> MatrixSnapshot<T>
-  -> optional caller-selected Serde format/transport
-  -> checked Matrix<T> reconstruction
-```
+R8-A does not authorize `cargo publish`, a Git tag, a GitHub Release, a release
+date, persistence/storage expansion, or external project integration.
 
 ## Accepted owner decisions
 
@@ -68,26 +55,27 @@ Matrix<T>
    for general linear-algebra kernels.
 2. `ndarray::Array2<T>` is the private initial dense-storage foundation.
 3. Rust 1.85.0 is the initial MSRV.
-4. The unfinished historical 0.1.0 prototype has no compatibility promise.
-5. The first rehabilitated release remains an owner-gated future milestone; no
-   release, tag, or publication is authorized by R7-A.
+4. The unfinished historical prototype did not carry a compatibility promise
+   into rehabilitation.
+5. The first rehabilitated release is owner-gated; qualification and publication
+   are separate decisions.
 6. The root `Cargo.lock` remains committed for reproducible campaign and CI
    qualification.
 7. Criterion 0.7.0 remains a development-only benchmark dependency with default
    features disabled and only `cargo_bench_support` enabled.
 8. Rayon remains deferred because R6 measured the repaired sequential dense path
    at approximately direct-ndarray performance.
-9. R7-A introduces Serde 1.0.229 only as an optional Matrical runtime feature;
-   `serde_json` 1.0.151 is development/example-only.
+9. Serde 1.0.229 is an optional runtime feature; `serde_json` 1.0.151 is
+   development/example-only.
 10. `MatrixSnapshot` is inert interchange data, not a live storage backend, and
     is intentionally excluded from the everyday prelude.
 11. Backend abstraction, sparse/mapped storage, persistence, and GAT/HRTB
     provider work remain deferred until real live implementations justify them.
-12. Matrical core does not depend on Strustegy; a future adapter belongs in an
-    integration boundary and must preserve caller-selected Lens/LensMut Gear
-    authority.
+12. Matrical core does not depend on a downstream orchestrator; future adapters
+    belong at explicit integration boundaries and must preserve caller-selected
+    Lens/LensMut Gear authority.
 
-## Accepted R2–R6 result
+## Accepted R2–R7 result
 
 ### Core geometry and storage
 
@@ -114,8 +102,8 @@ Preserved evidence:
 R4 established separate `ReadGear<T>` and `MutGear<T>` contracts, typed
 `Cog<C>` context validated through `ValidateCog`, inert `Tag` provenance,
 `ExecutionReport<O>`, central `execute_read` / `execute_mut`, and deterministic
-built-ins (`SumGear`, `AddScalarGear`, `ScaleGear`, `ClampGear`). A Gear receives
-only the supplied Lens capability and cannot use Tags as an execution channel.
+built-ins. A Gear receives only the supplied Lens capability and cannot use Tags
+as an execution channel.
 
 Preserved evidence:
 [`development/2026-08-28-r4-transform-composition.md`](development/2026-08-28-r4-transform-composition.md).
@@ -125,8 +113,7 @@ Preserved evidence:
 R5 established the recommended `matrical::prelude::*`, explicit supported
 crate-root exports, task-oriented getting-started material, runnable quickstart
 and custom-Gear examples, public API smoke coverage, API-stability policy, and
-documentation that teaches the accepted Matrix/Lens/Gear/Cog/Tag flow without
-requiring rehabilitation history.
+documentation centered on the accepted Matrix/Lens/Gear/Cog/Tag flow.
 
 Preserved evidence:
 [`development/2026-08-29-r5-api-learning-surface.md`](development/2026-08-29-r5-api-learning-surface.md).
@@ -150,51 +137,72 @@ Preserved evidence:
 [`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md)
 and [performance.md](performance.md).
 
-## R7-A implementation boundary
+### Versioned dense snapshot interchange
 
-`MatrixSnapshot<T>` owns:
+R7-A established `MatrixSnapshot<T>` with explicit dense schema version 1,
+private version/shape/value fields, fixed-width `u64` dimensions, checked
+reconstruction, borrowed cloning and consuming ownership-transfer creation, an
+optional Serde feature, deny-unknown-fields deserialization, a deterministic
+integer JSON fixture, and explicit caller-owned transport/storage boundaries.
+
+Accepted R7 merge:
 
 ```text
-version: u32
-rows: u64
-columns: u64
-row_major: Vec<T>
+commit f28fc380926c8175ff9b5faeb092be5bd7426245
+tree   5d8bac5a769ba0fc3b77dc4b107ccd90d6c0dd86
+PR     #12
 ```
 
-Fields are private. `DENSE_SNAPSHOT_VERSION` is `1`. Borrowed snapshot creation
-clones values and requires `T: Clone`; consuming snapshot creation transfers
-owned values without a `Clone` bound. Reconstruction checks the version,
-converts dimensions without truncation, and delegates shape/length validation to
-`Shape::new` and `Matrix::from_row_major`.
+Preserved evidence:
+[`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md)
+and [interchange.md](interchange.md).
 
-The optional `serde` feature applies only to `MatrixSnapshot<T>`. Matrix itself
-remains non-serializable and ndarray remains outside the interchange schema.
-The committed JSON fixture uses integer values and validates schema semantics;
-JSON is not Matrical's persistence engine or a universal element-fidelity claim.
+## R8-A release-candidate boundary
 
-See [interchange.md](interchange.md) and
-[`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md).
+R8-A owns only release-readiness questions that require package metadata,
+compatibility clarity, reproducible qualification, downstream package-artifact
+proof, or an owner release decision. In particular it audits:
+
+```text
+package metadata and packaged contents
+crate name / registry history
+version recommendation
+CHANGELOG
+supported versus specialized versus legacy API
+snapshot schema v1 release policy
+direct dependency/license scope
+Cargo package on Rust 1.85 and stable
+independent default/serde packaged consumers
+examples/docs/benchmark compile
+GitHub CI and mechanical audits
+```
+
+The candidate remains version `0.1.0` unless registry/version evidence makes a
+different candidate unambiguous. Owner judgment between valid alternatives is
+recorded rather than guessed.
 
 ## Residual historical/future debt
 
-R7-A does not reconstruct the historical operation framework, Vector/Element/SQL
-prototypes, detached `MatrixContext`, or broad dependency residue. It also does
-not add sparse/mapped storage, persistence engines, live backend traits,
-parallel runtime paths, or direct application orchestration.
+Release qualification does not reconstruct historical operation, Element,
+SQL/validation, or MatrixContext prototype design. Documentation-hidden
+compatibility residue is not part of the recommended release surface.
+
+Sparse/mapped storage, persistence engines, live backend traits, parallel runtime
+paths, and external orchestration remain future evidence-selected work rather
+than hidden R8-A scope.
 
 ## Current gate
 
-R7-A is reviewable only after the final exact branch head passes default and
-all-feature Rust 1.85/stable qualification, benchmark compilation, mechanical
-scope/whitespace/link checks, and GitHub CI.
+R8-A becomes reviewable only after the final exact branch head passes package,
+packaged-downstream, Rust 1.85/stable default/all-feature, examples, benchmark
+compile, dependency/license, documentation, and mechanical qualification with
+GitHub CI evidence.
 
 ```text
-R1-R6: COMPLETE — OWNER ACCEPTED
-R7-A: IN DEVELOPMENT / QUALIFICATION
-R7-B: BLOCKED ON R7-A ACCEPTANCE/MERGE
-R8: BLOCKED ON R7 COMPLETION
+R1-R7: COMPLETE — OWNER ACCEPTED
+R8-A: IN DEVELOPMENT / QUALIFICATION
 ```
 
-No R7-B implementation, version bump, tag, release, publication, persistence
-backend, sparse/mapped backend, or Strustegy integration is authorized in this
-branch.
+A successful R8-A exit is either `READY FOR OWNER RELEASE DECISION` or
+`NOT RELEASE READY — BLOCKERS IDENTIFIED`, depending on evidence. Neither state
+itself authorizes tagging, releasing, or publishing.

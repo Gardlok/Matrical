@@ -4,6 +4,25 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 authors = ["Anthony Gardner"]
+description = "Checked matrix selection and transformation with typed borrowing views and versioned snapshots."
+license = "MIT"
+repository = "https://github.com/Gardlok/Matrical"
+readme = "README.md"
+keywords = ["matrix", "selection", "transformation"]
+categories = ["data-structures"]
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "src/**",
+    "examples/**",
+    "benches/**",
+    "docs/getting-started.md",
+    "docs/interchange.md",
+    "docs/api-stability.md",
+]
 
 [features]
 default = []
@@ -11,7 +30,6 @@ serde = ["dep:serde"]
 
 [dependencies]
 ndarray = "0.15.3"
-crossbeam = "0.8.2"
 serde = { version = "=1.0.229", features = ["derive"], optional = true }
 
 [dev-dependencies]

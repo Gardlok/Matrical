@@ -1,82 +1,97 @@
 # Matrical API stability and deprecation policy
 
-## Current 0.1.0 position
+## Current 0.1.0 release-candidate position
 
-Matrical is still in an active rehabilitation campaign. The working R2–R6 core,
-R5 learning surface, and R7-A snapshot interchange direction represent the
-current design, but version `0.1.0` is **not** a SemVer stability guarantee for
-that Rust API.
+Matrical R1–R7 rehabilitation is owner accepted and R8-A is qualifying version
+`0.1.0` as the first rehabilitated release candidate. R8-A does **not** publish
+that version, create a tag, or create a GitHub Release.
 
-Before the first owner-authorized rehabilitated release:
+Until the owner separately authorizes a release, `0.1.0` remains a candidate and
+not a published SemVer promise. If the owner publishes this candidate, the
+supported Rust surface described below becomes the release-facing contract for
+that version.
 
-- public Rust APIs may change deliberately through reviewed campaign work;
-- unfinished historical prototype APIs have no compatibility promise;
-- Matrix, Region, Lens/LensMut, Gear, Cog, Tag, ExecutionReport, and
-  MatrixSnapshot are accepted conceptual directions, but exact Rust signatures
-  may still change;
-- no production-readiness, performance, schema-ecosystem, or crates.io
-  publication claim follows merely from passing the current qualification gates.
+## Recommended, specialized, legacy, and private surface
+
+The supported surface is intentionally curated:
+
+- `matrical::prelude::*` is the recommended everyday Matrix/Lens/Gear API;
+- named crate-root exports are supported and discoverable;
+- `matrical::schematics` and `matrical::strategies` group supported concepts for
+  deeper navigation;
+- `matrical::snapshot` and the crate-root `MatrixSnapshot` export are a
+  specialized supported interchange API and are deliberately excluded from the
+  prelude;
+- documentation-hidden historical operation, error-type, ElementContext,
+  MatrixContext, SQL/validation, and related prototype compatibility residue is
+  not recommended or supported for new downstream code;
+- ndarray storage, Lens representation, internal strategies, and other
+  crate-private implementation details are not public compatibility contracts.
+
+The public learning contract centers on checked `Shape`, `Index`, `Region`, and
+`Matrix`; borrowing `Lens`/`LensMut`; typed `ReadGear`/`MutGear`, `Cog`, `Tag`,
+and `ExecutionReport`; and the specialized versioned snapshot boundary.
+
+## Rust SemVer after publication
+
+If `0.1.0` is owner-authorized and published, Cargo-compatible `0.1.x` releases
+must not be used to smuggle incompatible changes to the supported Rust surface.
+A deliberate breaking change to that supported surface should advance to a new
+incompatible pre-1.0 line (for example `0.2.0`) unless a narrower SemVer rule
+clearly applies.
+
+Documentation-hidden historical residue does not gain a support promise merely
+because it remains technically reachable. Removing or changing that residue is
+still subject to deliberate review, but downstream callers should not depend on
+it as released API.
 
 ## Rust API stability versus snapshot schema compatibility
 
 Rust API compatibility and durable snapshot-schema compatibility are separate
 contracts.
 
-`MatrixSnapshot` dense schema v1 currently defines these logical fields and
-meanings:
+Dense `MatrixSnapshot` schema v1 defines these logical fields and meanings:
 
 ```text
 version: u32
 rows: u64
 columns: u64
-row_major: sequence of T in logical row-major order
+row_major: sequence of T in deterministic logical row-major order
 ```
 
-R7-A does **not** promise that schema v1 has a permanent ecosystem compatibility
-guarantee before the R8 owner-controlled release/stability gate. However, once a
-versioned schema is introduced, incompatible field or semantic changes must not
-be silently applied to the same version number. Deliberate incompatible schema
-changes should introduce a new snapshot version and explicit migration/reader
-behavior.
+The R8-A candidate policy is:
+
+> Within a released line, incompatible dense snapshot semantics must not silently
+> change under version 1. A future incompatible representation uses another
+> explicit snapshot schema version.
+
+This does not promise that every future Matrical release must support schema v1
+forever. Any future decision to retire or migrate a released schema requires an
+explicit compatibility/migration decision rather than silently reinterpreting
+version 1.
 
 A reader supporting dense snapshot v1 fails closed when presented with another
 version. With the optional Serde implementation, v1 also denies unknown fields
 rather than silently dropping future semantic data.
 
 The selected serialization format remains responsible for its own element-domain
-representational limits. The snapshot schema being versioned does not imply that
-every Serde format can faithfully encode every possible `T`.
+representational limits. A versioned snapshot schema does not imply every Serde
+format can faithfully encode every possible `T`.
 
-## Recommended versus specialized versus legacy surface
+## Breaking-change discipline
 
-The supported learning contract is intentionally curated:
+A breaking change to supported Rust API or a released snapshot contract must be
+deliberate and must:
 
-- `matrical::prelude::*` is the recommended everyday Matrix/Lens/Gear API;
-- named crate-root exports are supported and discoverable;
-- `matrical::schematics` and `matrical::strategies` group everyday supported
-  concepts;
-- `matrical::snapshot` and the crate-root `MatrixSnapshot` export are a
-  specialized interchange API and are deliberately excluded from the prelude;
-- historical operation, Element, Vector, SQL/validation, MatrixContext, and
-  related prototype scaffolding is not recommended API even when some symbols
-  remain reachable for temporary source compatibility.
-
-A downstream user should not build new code around documentation-hidden legacy
-surface and expect it to survive rehabilitation.
-
-## Breaking changes before the stability gate
-
-A pre-release breaking change may occur when it improves the accepted contract or
-removes unfinished prototype exposure. Such a change must be deliberate and must:
-
-1. be reviewed as part of a bounded campaign slice;
+1. be reviewed as bounded compatibility work rather than incidental cleanup;
 2. record caller-facing migration impact;
-3. update affected crate rustdoc, guides, examples, fixtures, and downstream
-   smoke tests;
-4. preserve established authority and safety contracts unless a separately
-   justified architecture change is accepted;
-5. for snapshot schemas, use an explicit new version rather than silently
-   changing incompatible v1 semantics.
+3. update affected rustdoc, guides, examples, fixtures, and downstream smoke
+   tests;
+4. preserve established Matrix/Lens/Gear authority and safety contracts unless a
+   separately justified architecture change is accepted;
+5. for incompatible snapshot semantics, use an explicit new schema version
+   rather than silently changing v1;
+6. choose a Rust crate version consistent with the applicable SemVer contract.
 
 Breaking changes are not an excuse for unrelated churn.
 
@@ -86,18 +101,14 @@ A deprecation period is expected when a supported, documented Rust API has real
 callers and a replacement can coexist safely long enough to aid migration.
 Deprecation should identify the replacement and the reason for the transition.
 
-During the current 0.1.0 rehabilitation, unfinished historical prototype APIs may
-instead be hidden or removed directly when they were never part of the accepted
-learning contract. Snapshot-version migration is handled separately through
-explicit versioning rather than Rust deprecation attributes alone.
+Documentation-hidden historical prototype APIs may instead be removed when they
+were never part of the supported learning/release contract. Snapshot-version
+migration is handled separately through explicit schema versioning rather than
+Rust deprecation attributes alone.
 
-## After a release/stability gate
+## What this document does not authorize
 
-Once an owner-authorized stability/release gate establishes a released public
-contract, SemVer governs Rust API compatibility for that release line and the
-release documentation must state the supported snapshot-schema compatibility
-policy. Future breaking changes must follow the versioning and migration
-expectations that apply to that published contract.
-
-This document does not authorize a version bump, release date, tag, crates.io
-publication, or permanent schema-v1 ecosystem guarantee.
+This policy does not authorize a version bump, release date, tag, GitHub Release,
+crates.io publication, permanent schema-v1 ecosystem guarantee, new persistence
+backend, or external integration. R8-A qualification and owner release approval
+remain separate gates.
