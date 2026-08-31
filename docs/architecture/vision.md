@@ -1,17 +1,18 @@
 # Matrical architecture vision
 
-**Status:** accepted rehabilitation direction through R5; R6 performance candidate reviewable
+**Status:** accepted rehabilitation direction through R6; R7-A dense snapshot interchange active
 
 ## Product position
 
 Matrical is a semantic matrix-transformation library: a small Rust core for
 validated matrix geometry and data, safe borrowing views, typed transformations,
-contextual policy, and bounded metadata/provenance.
+contextual policy, bounded provenance, and explicit inert interchange.
 
 It builds on mature dense storage rather than competing with established
-numerical libraries at storage layout, BLAS kernels, or general linear algebra.
+numerical libraries at storage layout, BLAS kernels, general linear algebra, or
+persistence engines.
 
-The accepted conceptual flow is:
+The accepted execution flow is:
 
 ```text
 Matrix
@@ -19,6 +20,18 @@ Matrix
   -> Gear (+ typed Cog)
   -> ExecutionReport (+ Tags)
 ```
+
+R7-A adds a separate interchange flow:
+
+```text
+live Matrix<T>
+  -> MatrixSnapshot<T>
+  -> caller-selected serialization/transport/storage
+  -> checked Matrix<T>
+```
+
+The snapshot path carries inert data. It does not create a live storage provider
+or widen Gear execution authority.
 
 ## The nomenclature contract
 
@@ -37,114 +50,98 @@ including `0 x 0`, `0 x N`, and `N x 0`.
 `Index` is an independently constructible row/column coordinate. Matrix and Lens
 access validate it before returning a reference.
 
-`Region` is a checked half-open rectangle:
-
-```text
-[start_row, end_row)
-[start_column, end_column)
-```
-
-End boundaries may equal the Shape dimension. Reversed or out-of-bounds ranges
-are typed failures. Empty Regions are valid. A Region presented for Lens
-construction is revalidated against the receiving Matrix.
+`Region` is a checked half-open rectangle. End boundaries may equal the Shape
+dimension. Reversed or out-of-bounds ranges are typed failures. Empty Regions
+are valid, and a Region presented for Lens construction is revalidated against
+the receiving Matrix.
 
 ### Lens
 
 `Lens<'a, T>` is an immutable rectangular borrowing view; `LensMut<'a, T>` is the
-mutable counterpart:
-
-```text
-Matrix<T> owns data
-Lens<'a, T>    borrows selected Matrix storage immutably
-LensMut<'a, T> borrows selected Matrix storage mutably
-```
-
-The borrow checker prevents a Lens from outliving its Matrix and gives a
-`LensMut` exclusive mutable borrow of the parent Matrix for its lifetime.
-Matrical does not add unsafe disjoint splitting or runtime overlap tracking.
+mutable counterpart. Rust lifetimes prevent a Lens from outliving its Matrix and
+give a `LensMut` exclusive mutable borrow of the parent Matrix for its lifetime.
 
 A Lens records the selected Region in parent coordinates but exposes checked
-`Index` access in Lens-local coordinates. Local `(0, 0)` names the Region's
-upper-left selected element.
+Index access in Lens-local coordinates. Logical iteration is deterministic
+row-major within the selected rectangle. `to_row_major()` is the explicit
+allocating `T: Clone` conversion.
 
-R6 changed only the private representation: after Region validation, Lens/LensMut
-hold an ndarray view of exactly the selected rectangle rather than holding the
-whole Matrix and filtering parent-wide iteration. The public type names,
-lifetimes, methods, error behavior, Region semantics, and Gear authority boundary
-remain unchanged. ndarray view types are not exposed publicly.
+R6 changed only the private representation: after Region validation,
+Lens/LensMut hold an ndarray view of exactly the selected rectangle rather than
+filtering parent-wide iteration. ndarray view types remain private.
 
-Lens construction, row/column selection, checked access, and iteration do not
-require selected-value copies or heap allocation. Logical iteration is row-major
-within the selected rectangle and makes no physical-contiguity promise.
-`to_row_major()` is the explicit allocating `T: Clone` conversion.
-
-### Gear
+### Gear, Cog, Tag, and ExecutionReport
 
 A Gear transforms only the data visible through the Lens supplied by its caller.
-Read and mutating authority are distinct static contracts:
+Read and mutating authority are distinct static contracts. A Gear does not
+normally receive Matrix storage or a generic selector/provider from which it can
+request a broader Region.
+
+`Cog<C>` carries optional typed context validated before execution. `Tag` is
+bounded inert provenance and never becomes an operation selector or command
+channel. `ExecutionReport<O>` records successful Gear identity, Region, effect,
+typed output, and ordered Tags without erasing the output type.
+
+### MatrixSnapshot
+
+`MatrixSnapshot<T>` is Matrical's specialized dense interchange DTO. Its logical
+v1 fields are:
 
 ```text
-ReadGear<T> -> &Lens<'_, T>
-MutGear<T>  -> &mut LensMut<'_, T>
+version: u32
+rows: u64
+columns: u64
+row_major: Vec<T>
 ```
 
-A Gear does not normally receive `&Matrix<T>`, `&mut Matrix<T>`, ndarray storage,
-or a generic selector/provider from which it can request a broader Region. This
-is the central least-authority rule of the transformation design.
+The fields are private. `DENSE_SNAPSHOT_VERSION` is `1`. Fixed-width `u64`
+dimensions keep the interchange schema independent of the producer's pointer
+width. Reconstruction checks conversion to the receiving platform's `usize`,
+then delegates element-count and row-major length validation to `Shape::new` and
+`Matrix::from_row_major`.
 
-Downstream crates implement Gear traits directly with static dispatch. A central
-registry, factory registration, `Any` context lookup, string operation dispatch,
-DI container, and mandatory boxed trait objects are not part of the accepted
-core.
-
-Built-in deterministic examples are `SumGear`, `AddScalarGear`, `ScaleGear`, and
-`ClampGear`.
-
-### Cog
-
-`Cog<C>` carries optional context whose concrete Rust type is selected by a
-Gear's associated `Context`. `ValidateCog` runs before Gear execution. Missing
-required context returns `MatricalError::InvalidContext`; invalid concrete policy
-returns an appropriate typed error such as `InvalidValue`.
-
-Cog is intentionally not a string-keyed map, `Any` container, or dependency
-injection mechanism.
-
-### Tag
-
-`Tag` is bounded typed provenance associated with a successful execution report.
-The current namespace provides a source label, typed `TagStage`, and numeric
-sequence identity.
-
-Tags are inert. Source text is never interpreted as code, a query, a command, or
-a Gear selector. Tags are attached to a successful `ExecutionReport` after the
-Gear returns and are not passed into Gear execution.
-
-### ExecutionReport
-
-`ExecutionReport<O>` records a successful execution without erasing its output:
+Snapshot creation makes ownership/copy behavior explicit:
 
 ```text
-Gear identity
-exact caller-selected Region
-GearEffect::{ReadOnly, Mutating}
-strongly typed output O
-ordered provenance Tags
+Matrix::snapshot       borrows; O(n) clones T; requires T: Clone
+Matrix::into_snapshot  consumes; transfers T; no Clone bound
+snapshot.into_matrix   consumes; validates; reconstructs owned dense Matrix
 ```
 
-Failures remain `Err(MatricalError)`; Matrical does not fabricate success reports
-around failed transformations.
+`MatrixSnapshot` contains no ndarray type, Lens internals, Gear internals,
+database handle, file path, socket, mapped region, background persistence
+worker, or other live authority.
+
+## Serialization and transport boundary
+
+Serde support is optional and belongs only to `MatrixSnapshot<T>`. `Matrix<T>`
+is not directly serializable and Matrical does not derive serialization for its
+private ndarray-backed storage.
+
+The snapshot schema is format-neutral. A chosen Serde format is responsible for
+its own representational limits for `T`. JSON is used only for a deterministic
+integer fixture and in-memory example; it is not Matrical's storage engine and
+is not evidence that arbitrary floating-point values preserve every bit through
+JSON.
+
+Matrical decides representation. The caller decides where bytes go. No
+`save_json`, `load_json`, filesystem, database, network, environment/config, or
+background persistence authority belongs in R7-A.
+
+Generic deserialization is also not a complete hostile-input resource limiter.
+Callers accepting untrusted documents must bound transport/format resources such
+as size, nesting, and allocation. Matrical's snapshot guarantee is fail-closed
+semantic reconstruction, not universal parsing-resource protection.
+
+See [interchange.md](../interchange.md).
 
 ## Public learning surface
-
-R5 made the conceptual architecture the documentation map instead of exposing
-prototype-era module history as the normal API.
 
 The supported discovery policy is:
 
 ```text
 matrical::prelude::*
-  recommended everyday API
+  recommended everyday Matrix/Lens/Gear API
 
 matrical::{Shape, Matrix, Lens, ReadGear, ...}
   named supported and discoverable crate-root API
@@ -154,14 +151,15 @@ matrical::schematics
 
 matrical::strategies
   Lens, Gear, Cog, Tag, and reporting organization
+
+matrical::snapshot / matrical::MatrixSnapshot
+  specialized explicit interchange API
 ```
 
+`MatrixSnapshot` is intentionally excluded from the prelude so serialization and
+integration concerns do not become part of every caller's everyday import set.
 Historical operation scaffolding may remain source-accessible and `doc(hidden)`
-during 0.1.0 rehabilitation when compatibility is useful, but it is not part of
-the learning contract. Historical SQL, Element, Vector, `MatrixContext`,
-`AtomicBoolError`, and raw dependency types are not prelude exports.
-
-R6 does not alter this public learning surface.
+during 0.1.0 rehabilitation but is not part of the learning contract.
 
 ## Layering
 
@@ -175,163 +173,113 @@ matrical-view
 matrical-transform
   ReadGear, MutGear, Cog, ValidateCog, Tag, ExecutionReport
 
+matrical-interchange
+  MatrixSnapshot, dense schema version, checked reconstruction
+
 development measurement
   Criterion benchmark harnesses; no runtime authority
 
 optional later integrations
-  measurement-driven parallelism, serialization, persistence, specialized storage
+  real consumer adapters, sparse/mapped storage, measured parallelism
 ```
 
-The first rehabilitation release may remain one crate. These are semantic
-boundaries, not a requirement to split the workspace.
+These are semantic boundaries within the current crate, not a requirement to
+split the workspace.
 
 ## Foundational invariants
 
 - Shape dimensions and total element count agree without overflow.
 - Zero-sized Shape/Matrix values are valid.
 - Every public index and Region is validated before access/use.
-- Region ordering is half-open and empty-selection behavior is explicit.
-- Ordinary invalid public input is typed and fallible rather than panic-driven.
 - Matrix and Lens logical iteration preserve deterministic row-major order.
 - A Lens cannot outlive the Matrix storage it borrows.
 - A mutable Lens has exclusive mutable access to its parent Matrix for its
   lifetime.
-- A read Gear receives no mutable Lens capability.
-- A mutating Gear cannot access values outside its supplied LensMut Region.
-- Missing required Cog context is a typed failure.
-- Invalid contextual policy is rejected before Gear execution.
-- Tag/provenance cannot mutate Matrix data or select an operation by side
-  channel.
-- Convenience APIs must not silently broaden authority.
+- A Gear cannot escape the exact caller-selected Lens/LensMut capability.
+- Tag/provenance cannot mutate Matrix data or select execution by side channel.
+- Dense snapshot v1 has an explicit version and fixed field semantics.
+- Snapshot dimensions are converted without truncation.
+- Snapshot reconstruction reuses Matrix/Shape invariants and fails closed on
+  unsupported versions or malformed shape/value relationships.
+- A snapshot is inert representation, not live storage/execution authority.
 - Performance optimization must not expose the private ndarray backend or weaken
-  checked Region semantics.
+  checked semantics.
 
-## Constructors, builders, and conversions
+## Backend abstraction and advanced Rust
 
-The accepted simple types use explicit typed constructors rather than builders.
-`Shape`, `Region`, `Cog`, `ScalarPolicy`, `ClampPolicy`, and `Tag` do not
-currently have enough optional configuration or ordering complexity to justify
-builder ceremony.
+Backend abstraction waits until multiple real live implementations expose a
+stable shared need. A snapshot is not such an implementation: it is an inert DTO.
+R7-A therefore does not add `MatrixBackend`, `StorageBackend`, lending providers,
+GAT/HRTB factories, generic Lens providers, sparse storage, or mapped storage.
 
-Conversion names intentionally communicate ownership/allocation:
+GATs and HRTBs remain tools rather than design goals. R3 found concrete
+lifetime-generic Lenses clearer with one provider; R4 added a least-authority
+reason not to give Gears a generic selector/provider. A future abstraction must
+solve a concrete second-provider composability problem without weakening that
+boundary.
 
-```text
-Matrix::from_row_major  constructs owned checked Matrix; fallible
-Matrix::into_row_major  consumes Matrix and returns owned values
-Lens::to_row_major      borrows Lens, clones selected T values, allocates
-```
+## Future consumer and integration boundary
 
-Matrical does not add `From`/`Into` implementations that conceal fallibility.
+Matrical core must remain independently useful and does not select a preferred
+external consumer. Concrete callers may use public Matrical APIs and may move
+`MatrixSnapshot` as inert data without becoming part of the core architecture.
 
-## Storage and missingness
-
-The accepted first dense storage is private `ndarray::Array2<T>`. R6 also uses
-private ndarray view types internally to represent an already validated Lens
-selection. This is an implementation detail, not a new public backend contract.
-
-A validity/missingness mask is not intrinsic Matrix storage. Missingness belongs
-in an explicit paired structure, wrapper, or downstream domain type unless a
-future concrete use case proves that core Matrical should own that semantic.
-
-Backend abstraction waits until multiple real implementations expose a stable
-shared need.
-
-## Advanced Rust and authority
-
-GATs and HRTBs are tools, not design goals. R3 evaluated a lending-provider GAT
-and retained concrete lifetime-generic Lenses because Matrix was the only proven
-provider. R4 added a stronger reason: passing a selector/provider to a Gear could
-give it authority to choose a broader Region than the caller intended.
-
-The accepted architecture therefore consumes an already-selected capability:
-
-```text
-caller: Matrix -> Lens / LensMut
-Gear:   receives that exact Lens / LensMut
-```
-
-R6 improves the private traversal representation without reopening that public
-abstraction. A future GAT/HRTB abstraction still requires a concrete
-composability failure that justifies the extra public complexity without
-weakening least authority.
-
-## Dynamic dispatch
-
-Static Gear dispatch is the default. The public extension model allows a
-downstream crate to define a context type, implement `ValidateCog`, implement a
-Gear trait, and call `execute_read`/`execute_mut` without registration or boxing.
-Heterogeneous runtime pipelines remain deferred until a real consumer requires
-them.
+If a later consumer demonstrates enough value to justify an adapter, that
+adapter should live outside Matrical core in the consumer, a dedicated
+integration crate, or another explicit opt-in boundary. Any such orchestration
+still leaves Gear execution bounded by the caller-selected Lens/LensMut.
 
 ## Concurrency and performance
 
-The accepted execution contract remains deterministic and sequential. Thread-safe
-containers do not by themselves define safe matrix-level concurrency.
+The accepted execution contract remains deterministic and sequential. R6's
+private checked-view repair removed parent-wide Lens scans and measured dense
+traversal approximately at direct-ndarray speed on the owner evidence host.
+Rayon remains deferred because no measured R6 workload justified the extra
+runtime/concurrency surface.
 
-R6 established a Criterion benchmark harness and found one dominant sequential
-defect: Lens/LensMut traversed the full parent Matrix and filtered for selected
-Region membership. The private checked-view repair removes that parent-wide scan.
+Snapshot creation/reconstruction is O(Matrix elements) when values must be
+cloned or transferred. The borrowed snapshot path is explicitly not zero-copy.
+No new R7-A Criterion benchmark is required because the slice does not change R6
+traversal mechanics.
 
-On the authoritative owner-machine run, candidate dense traversal is already
-approximately equivalent to direct ndarray traversal:
-
-```text
-100000x64 full Lens read / direct ndarray       0.990x
-100000x64 full LensMut transform / direct       1.000x
-100000x64 full Gear read / Lens                 1.029x
-100000x64 full Gear mutation / LensMut          1.062x
-```
-
-A fixed 4 x 4 Lens read stays near 7.3 ns across parents ranging from `32 x 24`
-to `100000 x 64`; its cost no longer scales with unrelated parent cells.
-
-R6 therefore does not add Rayon. Parallel execution remains optional future work
-only when a concrete workload demonstrates enough per-element computation to
-justify scheduling, threshold policy, and added concurrency surface.
-
-See [performance.md](../performance.md) for methodology, exact measurements,
-allocation/copy accounting, and limitations.
+See [performance.md](../performance.md) for R6 methodology and measurements.
 
 ## Error contract
 
 `MatricalError` is public, structural, non-recursive, and implements
-`std::error::Error`. Geometry/construction failures carry available structural
-context. `InvalidContext` means required Cog context is absent; `InvalidValue`
-means a value or typed policy failed validation. Legacy variants remain visibly
-classified rather than being presented as richer errors than they are.
+`std::error::Error`. R7-A adds structural unsupported-snapshot-version and
+snapshot-dimension-range failures while reusing the existing shape-overflow and
+row-major-length variants. New interchange failures are not collapsed into
+free-form `Custom(String)`.
 
 ## Dependency policy
 
-ndarray remains the private dense storage backend; Crossbeam remains historical
-non-Matrix residue outside R6.
+ndarray remains the private dense storage backend. Crossbeam remains historical
+non-Matrix residue. Criterion remains development-only benchmark infrastructure.
 
-R6 adds exact Criterion 0.7.0 only under `[dev-dependencies]`, with default
-features disabled and `cargo_bench_support` enabled. Criterion does not grant
-runtime authority and is not a normal Matrical dependency.
-
-Rayon is not added. Optional database, serialization, parallelism, and
-specialized-backend capabilities must earn explicit design/feature/test work
-later.
+R7-A adds exact Serde 1.0.229 as an optional normal dependency and exact
+serde_json 1.0.151 as a development/example-only dependency. Serde/serde_json
+may already be present in `Cargo.lock` through Criterion; lockfile presence is
+not the same as activation in Matrical's default normal runtime dependency graph.
+Default versus `serde`-enabled normal dependency trees are qualified separately.
 
 ## Non-goals for the rehabilitation core
 
 - Reimplementing a complete linear-algebra ecosystem.
-- Database-backed matrices in the first functional slices.
-- A hidden validity/missingness mask in `Matrix<T>`.
-- Lock-free or parallel Matrix/Lens mutation as a default requirement.
+- Persistence engines or hidden I/O authority in the snapshot API.
+- Sparse/mapped Matrix storage in R7-A.
+- A backend/provider trait with only one live backend.
 - Unsafe disjoint mutable Lens splitting.
 - Giving a Gear arbitrary Region-selection authority.
 - Runtime Gear registries or DI containers without a concrete consumer need.
-- Tags as SQL/query/command envelopes.
-- Preserving unfinished 0.1.0 prototype APIs as a compatibility contract.
-- Using advanced Rust syntax or concurrency machinery without a correctness,
-  usability, or measured performance benefit.
-- Treating benchmark numbers from one host as universal throughput guarantees.
+- Direct dependency on a downstream orchestrator or consumer inside Matrical core.
+- Treating one serialization format as universally faithful for every `T`.
+- Treating generic deserialization as universal resource-exhaustion protection.
+- Using advanced Rust syntax or concurrency machinery without concrete benefit.
 
 ## Downstream consumers
 
 Concrete consumers may inform acceptance criteria without moving their domain
-model into Matrical. The first recorded input remains the
-[longitudinal feature-analysis consumer note](consumers/longitudinal-feature-analysis.md).
-Application identity, capture semantics, missingness meaning, persistence, and
-domain interpretation remain downstream responsibilities.
+model into Matrical. Application identity, capture semantics, missingness,
+persistence, transport, and domain interpretation remain downstream
+responsibilities unless a later bounded slice explicitly accepts them.

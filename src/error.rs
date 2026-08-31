@@ -2,10 +2,10 @@ use std::fmt;
 
 /// Errors returned by Matrical's checked public API.
 ///
-/// R2–R4 callers should normally match the structural geometry, construction,
-/// indexing, context, and validation variants directly. `Regular`, `Custom`, and
-/// `ShouldNotOccur` are retained from the historical 0.1.0 prototype and are not
-/// the preferred basis for new APIs.
+/// Callers should normally match structural geometry, construction, indexing,
+/// context, validation, and interchange variants directly. `Regular`, `Custom`,
+/// and `ShouldNotOccur` are retained from the historical 0.1.0 prototype and are
+/// not the preferred basis for new APIs.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MatricalError {
     /// Historical operation error category retained for prototype compatibility.
@@ -24,6 +24,10 @@ pub enum MatricalError {
     ShapeElementCountOverflow { rows: usize, columns: usize },
     /// Row-major construction received a value count different from Shape::len.
     RowMajorLengthMismatch { expected: usize, actual: usize },
+    /// A dense snapshot used a schema version this Matrical build does not support.
+    UnsupportedSnapshotVersion { found: u32, supported: u32 },
+    /// Snapshot dimensions cannot be represented by the receiving platform's `usize`.
+    SnapshotDimensionOutOfRange { rows: u64, columns: u64 },
     /// A Region start boundary was greater than its corresponding end boundary.
     RegionReversed {
         start_row: usize,
@@ -74,6 +78,14 @@ impl fmt::Display for MatricalError {
             MatricalError::RowMajorLengthMismatch { expected, actual } => write!(
                 f,
                 "Row-major data length mismatch: expected {expected} elements, got {actual}"
+            ),
+            MatricalError::UnsupportedSnapshotVersion { found, supported } => write!(
+                f,
+                "Unsupported dense snapshot version {found}; this Matrical build supports version {supported}"
+            ),
+            MatricalError::SnapshotDimensionOutOfRange { rows, columns } => write!(
+                f,
+                "Dense snapshot dimensions {rows}x{columns} cannot fit this platform's Matrix dimensions"
             ),
             MatricalError::RegionReversed {
                 start_row,
@@ -182,6 +194,23 @@ mod tests {
                 actual: 3,
             }
         );
+        assert_eq!(
+            MatricalError::UnsupportedSnapshotVersion {
+                found: 2,
+                supported: 1,
+            },
+            MatricalError::UnsupportedSnapshotVersion {
+                found: 2,
+                supported: 1,
+            }
+        );
+        assert!(matches!(
+            MatricalError::SnapshotDimensionOutOfRange {
+                rows: u64::MAX,
+                columns: 1,
+            },
+            MatricalError::SnapshotDimensionOutOfRange { .. }
+        ));
     }
 
     #[test]
@@ -196,5 +225,18 @@ mod tests {
         for (error, expected) in cases {
             assert!(error.to_string().contains(expected));
         }
+
+        assert!(MatricalError::UnsupportedSnapshotVersion {
+            found: 2,
+            supported: 1,
+        }
+        .to_string()
+        .contains("version 2"));
+        assert!(MatricalError::SnapshotDimensionOutOfRange {
+            rows: u64::MAX,
+            columns: 1,
+        }
+        .to_string()
+        .contains("cannot fit"));
     }
 }

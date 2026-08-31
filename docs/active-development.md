@@ -1,21 +1,19 @@
 # Matrical active development
 
-**Last updated:** 2026-08-30
+**Last updated:** 2026-08-31
 
 ## Accepted campaign baseline
 
 ```text
 repository Gardlok/Matrical
 branch     main
-commit     acd15be9d02d27e6189aadedad3620e9558efe8f
-tree       bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
+commit     6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
+tree       919f8f800f1ffa3b4750def03f803a807ff25179
 version    0.1.0
 ```
 
-Commit `acd15be9d02d27e6189aadedad3620e9558efe8f` merged PR #10 and the
-owner-accepted R5 public-learning-surface result. Its second parent,
-`bab1a12ae92f5024e423ac55183e4e78d756b8fd`, is the accepted final R5
-candidate.
+Commit `6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773` merged PR #11 and the
+owner-accepted R6 dense-traversal performance result.
 
 The accepted baseline is a qualified rehabilitation checkpoint, not a release or
 production-readiness claim.
@@ -29,22 +27,39 @@ R2: COMPLETE — OWNER ACCEPTED — MERGED IN PR #7
 R3: COMPLETE — OWNER ACCEPTED — MERGED IN PR #8
 R4: COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
 R5: COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
-R6: REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+R6: COMPLETE — OWNER ACCEPTED — MERGED IN PR #11
+R7: ACTIVE
+R7-A: AUTHORIZED — VERSIONED DENSE SNAPSHOT INTERCHANGE
+R7-B: BLOCKED ON R7-A ACCEPTANCE/MERGE
+R8: BLOCKED ON R7 COMPLETION
 ```
 
-R6 starts from the exact accepted R5 baseline above on
-`rehab/r6-measure-optimize`. Its mission is to establish representative
-performance evidence first, optimize only demonstrated waste, account for
-allocation/copy behavior, decide whether parallel execution is justified, and
-preserve the accepted public API and capability boundary.
+R7-A starts from the exact accepted R6 baseline above on
+`rehab/r7a-versioned-snapshot`. Its bounded mission is to add a Matrical-owned,
+versioned dense snapshot DTO, checked reconstruction, an optional Serde feature,
+a committed integer JSON fixture/example, dual default/all-feature CI coverage,
+and documentation of the caller-owned transport boundary.
 
-The conceptual flow remains:
+R7-A does not authorize sparse/mapped storage, persistence engines, filesystem or
+network APIs, backend/provider traits, GAT/HRTB provider abstractions, Strustegy
+dependencies, release qualification, or publication.
+
+The execution flow remains:
 
 ```text
 Matrix
   -> Lens / LensMut
   -> Gear (+ typed Cog)
   -> ExecutionReport (+ Tags)
+```
+
+R7-A adds a separate inert interchange path:
+
+```text
+Matrix<T>
+  -> MatrixSnapshot<T>
+  -> optional caller-selected Serde format/transport
+  -> checked Matrix<T> reconstruction
 ```
 
 ## Accepted owner decisions
@@ -55,18 +70,24 @@ Matrix
 3. Rust 1.85.0 is the initial MSRV.
 4. The unfinished historical 0.1.0 prototype has no compatibility promise.
 5. The first rehabilitated release remains an owner-gated future milestone; no
-   release, tag, or publication is authorized by R6.
+   release, tag, or publication is authorized by R7-A.
 6. The root `Cargo.lock` remains committed for reproducible campaign and CI
    qualification.
-7. Criterion 0.7.0 is accepted in R6 as a development-only benchmark dependency
-   with default features disabled and only `cargo_bench_support` enabled.
-8. Rayon remains deferred: the measured R6 sequential repair brings dense
-   Lens/LensMut traversal to approximately direct-ndarray performance, so R6 has
-   no evidence that parallelism justifies added runtime/concurrency complexity.
-9. Backend abstraction, persistence, serialization, dynamic Gear registries, DI
-   containers, and speculative GAT/HRTB ceremony remain outside R6.
+7. Criterion 0.7.0 remains a development-only benchmark dependency with default
+   features disabled and only `cargo_bench_support` enabled.
+8. Rayon remains deferred because R6 measured the repaired sequential dense path
+   at approximately direct-ndarray performance.
+9. R7-A introduces Serde 1.0.229 only as an optional Matrical runtime feature;
+   `serde_json` 1.0.151 is development/example-only.
+10. `MatrixSnapshot` is inert interchange data, not a live storage backend, and
+    is intentionally excluded from the everyday prelude.
+11. Backend abstraction, sparse/mapped storage, persistence, and GAT/HRTB
+    provider work remain deferred until real live implementations justify them.
+12. Matrical core does not depend on Strustegy; a future adapter belongs in an
+    integration boundary and must preserve caller-selected Lens/LensMut Gear
+    authority.
 
-## Accepted R2–R5 result
+## Accepted R2–R6 result
 
 ### Core geometry and storage
 
@@ -110,78 +131,70 @@ requiring rehabilitation history.
 Preserved evidence:
 [`development/2026-08-29-r5-api-learning-surface.md`](development/2026-08-29-r5-api-learning-surface.md).
 
-## R6 measured result
+### Measured dense traversal
 
-The permanent R6 benchmark harness was established at:
+R6 established Criterion evidence, repaired inherited parent-wide Lens traversal
+with checked private ndarray Region views, preserved public semantics/authority,
+accounted for allocation/copy behavior, and explicitly deferred Rayon because the
+repaired sequential path was already approximately direct-ndarray speed.
 
-```text
-commit 91d1724a70c2af7ff5bd077dd8625b73302e0939
-tree   988e5a5638dd6267d765c150df7a1f2a400941bc
-```
-
-That commit contains accepted R5 source plus the R6 Criterion harness. Preliminary
-measurement showed fixed 4 x 4 Lens traversal scaling with the entire parent
-Matrix because the inherited implementation enumerated/filter-mapped every parent
-element.
-
-The source repair at `db1c498edac854b59065cdcf1bfa5595334292aa`
-replaced that scan with a checked private ndarray Region view. Regression
-coverage at `9a9f4199d28da4294bdf0973cb7579e4add5d78f` preserves full/interior,
-single-row/column, empty/zero-dimension, row-major mutation, local indexing, and
-foreign-Region failure semantics.
-
-The public method signatures and caller-selected Lens/LensMut authority boundary
-are unchanged. No unsafe code or Rayon was added.
-
-### Authoritative performance gate
-
-One consolidated owner-machine run on Orion measured the baseline harness commit
-and optimized candidate with identical benchmark code, lockfile, stable toolchain,
-and host.
-
-Representative result:
+Accepted R6 merge:
 
 ```text
-fixed 4x4 Lens read, parent 100000x64
-baseline  30.694 ms
-candidate  7.242 ns
-speedup    4,238,449x
-
-candidate fixed-4x4 parent scaling:
-32x24       7.341 ns
-1024x64     7.329 ns
-100000x64   7.242 ns
+commit 6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
+tree   919f8f800f1ffa3b4750def03f803a807ff25179
+PR     #11
 ```
 
-Every predeclared dense-Lens and Gear-over-Lens budget passed. Full details,
-environment, allocation/copy accounting, profiling limitation, and the Rayon
-decision are in [performance.md](performance.md).
+Preserved evidence:
+[`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md)
+and [performance.md](performance.md).
 
-## Residual historical debt
+## R7-A implementation boundary
 
-R6 does not reconstruct the historical operation framework, Vector/Element/SQL
-prototypes, detached `MatrixContext`, broad dependency residue, or optional
-backends. Those remain classified legacy/future work rather than being folded
-into the performance slice.
+`MatrixSnapshot<T>` owns:
 
-`perf` profiling was unavailable on both evidence hosts for different reasons:
-the shared GitHub runner denied hardware counters and the owner machine did not
-have the `perf` executable installed. R6 did not change host security policy or
-install system tooling solely for profiling. Benchmark scaling plus source
-inspection independently identified the parent-wide traversal defect.
+```text
+version: u32
+rows: u64
+columns: u64
+row_major: Vec<T>
+```
+
+Fields are private. `DENSE_SNAPSHOT_VERSION` is `1`. Borrowed snapshot creation
+clones values and requires `T: Clone`; consuming snapshot creation transfers
+owned values without a `Clone` bound. Reconstruction checks the version,
+converts dimensions without truncation, and delegates shape/length validation to
+`Shape::new` and `Matrix::from_row_major`.
+
+The optional `serde` feature applies only to `MatrixSnapshot<T>`. Matrix itself
+remains non-serializable and ndarray remains outside the interchange schema.
+The committed JSON fixture uses integer values and validates schema semantics;
+JSON is not Matrical's persistence engine or a universal element-fidelity claim.
+
+See [interchange.md](interchange.md) and
+[`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md).
+
+## Residual historical/future debt
+
+R7-A does not reconstruct the historical operation framework, Vector/Element/SQL
+prototypes, detached `MatrixContext`, or broad dependency residue. It also does
+not add sparse/mapped storage, persistence engines, live backend traits,
+parallel runtime paths, or direct application orchestration.
 
 ## Current gate
 
-R6 implementation, semantic regression coverage, two-lane code qualification,
-and the authoritative owner-machine before/after measurement are complete.
-
-The detailed record is
-[`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md).
+R7-A is reviewable only after the final exact branch head passes default and
+all-feature Rust 1.85/stable qualification, benchmark compilation, mechanical
+scope/whitespace/link checks, and GitHub CI.
 
 ```text
-R6: REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
-R7: BLOCKED UNTIL R6 IS ACCEPTED AND MERGED
+R1-R6: COMPLETE — OWNER ACCEPTED
+R7-A: IN DEVELOPMENT / QUALIFICATION
+R7-B: BLOCKED ON R7-A ACCEPTANCE/MERGE
+R8: BLOCKED ON R7 COMPLETION
 ```
 
-No R7 implementation, version bump, tag, release, publication, backend
-abstraction, or parallel runtime path is authorized by this R6 candidate.
+No R7-B implementation, version bump, tag, release, publication, persistence
+backend, sparse/mapped backend, or Strustegy integration is authorized in this
+branch.

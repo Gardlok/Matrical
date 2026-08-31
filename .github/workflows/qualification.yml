@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust ${{ matrix.toolchain }}
         run: |
@@ -28,17 +30,127 @@ jobs:
           rustup component add clippy --toolchain "${{ matrix.toolchain }}"
           rustup override set "${{ matrix.toolchain }}"
 
-      - name: Check
+      - name: Record toolchain and dependency evidence
+        run: |
+          rustc --version --verbose
+          cargo --version
+          sha256sum Cargo.lock
+          printf '%s\n' '=== default normal dependency graph ==='
+          cargo tree --locked -e normal
+          printf '%s\n' '=== serde-enabled normal dependency graph ==='
+          cargo tree --locked -e normal --features serde
+
+      - name: Check default features
         run: cargo check --locked --all-targets
 
-      - name: Test
+      - name: Test default features
         run: cargo test --locked --all-targets
 
-      - name: Doctest
+      - name: Doctest default features
         run: cargo test --locked --doc
 
-      - name: Clippy
+      - name: Clippy default features
         run: cargo clippy --locked --all-targets
 
-      - name: Documentation
+      - name: Documentation default features
         run: cargo doc --locked --no-deps
+
+      - name: Check all features
+        run: cargo check --locked --all-targets --all-features
+
+      - name: Test all features
+        run: cargo test --locked --all-targets --all-features
+
+      - name: Doctest all features
+        run: cargo test --locked --doc --all-features
+
+      - name: Clippy all features
+        run: cargo clippy --locked --all-targets --all-features
+
+      - name: Documentation all features
+        run: cargo doc --locked --no-deps --all-features
+
+      - name: Compile benchmarks
+        run: cargo bench --locked --no-run
+
+      - name: Mechanical R7-A audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$(git merge-base HEAD origin/main)"
+          git diff --check "$BASE" HEAD
+
+          python3 - "$BASE" <<'PY'
+          import pathlib
+          import re
+          import subprocess
+          import sys
+
+          base = sys.argv[1]
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", base, "HEAD"], text=True
+          ).splitlines()
+
+          allowed = {
+              ".github/workflows/qualification.yml",
+              "Cargo.toml",
+              "Cargo.lock",
+              "README.md",
+              "src/error.rs",
+              "src/lib.rs",
+              "src/snapshot.rs",
+              "examples/r7_snapshot.rs",
+              "tests/r7_snapshot.rs",
+              "tests/r7_snapshot_serde.rs",
+              "tests/fixtures/r7_dense_snapshot_v1.json",
+              "docs/README.md",
+              "docs/active-development.md",
+              "docs/api-stability.md",
+              "docs/architecture/vision.md",
+              "docs/interchange.md",
+              "docs/roadmap.md",
+              "docs/development/2026-08-30-r7a-versioned-snapshot.md",
+          }
+          unexpected = sorted(set(changed) - allowed)
+          if unexpected:
+              raise SystemExit(f"unexpected R7-A paths: {unexpected}")
+
+          missing_newline = []
+          broken_links = []
+          link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+
+          for name in changed:
+              path = pathlib.Path(name)
+              if path.is_file() and path.stat().st_size and not path.read_bytes().endswith(b"\n"):
+                  missing_newline.append(name)
+
+              if path.suffix != ".md" or not path.is_file():
+                  continue
+              text = path.read_text(encoding="utf-8")
+              for target in link_re.findall(text):
+                  target = target.strip().split()[0].strip("<>")
+                  if not target or target.startswith(("http://", "https://", "mailto:", "#")):
+                      continue
+                  target = target.split("#", 1)[0]
+                  resolved = (path.parent / target).resolve()
+                  if not resolved.exists():
+                      broken_links.append(f"{name}: {target}")
+
+          if missing_newline:
+              raise SystemExit(f"missing final newline: {missing_newline}")
+          if broken_links:
+              raise SystemExit("broken relative links:\n" + "\n".join(broken_links))
+          PY
+
+          if git diff --unified=0 "$BASE" HEAD -- '*.rs' \
+            | grep '^+' \
+            | grep -v '^+++' \
+            | grep -Eq '\bunsafe\b'; then
+            echo 'new unsafe Rust detected'
+            exit 1
+          fi
+
+          if git ls-files | grep -Eq '(^|/)target/'; then
+            echo 'repository-local target artifacts are tracked'
+            exit 1
+          fi

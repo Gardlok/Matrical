@@ -20,7 +20,9 @@
 
 **Accepted R5 merge:** `acd15be9d02d27e6189aadedad3620e9558efe8f`
 
-**Current phase:** R6 reviewable; Teamlead/owner acceptance pending
+**Accepted R6 merge:** `6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773`
+
+**Current phase:** R7 active; R7-A authorized
 
 This roadmap is ordered. Later work may be researched early, but implementation
 must not bypass an earlier invariant or acceptance gate.
@@ -72,161 +74,128 @@ evidence. A speculative GAT lending-provider abstraction was deferred.
 
 **Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #9
 
-Delivered:
-
-- distinct `ReadGear<T>` and `MutGear<T>` static traits;
-- the caller-selected Lens as the transformation authority boundary;
-- downstream-defined Gears without registry, `Any`, or string dispatch;
-- built-ins `SumGear`, `AddScalarGear`, `ScaleGear`, and `ClampGear`;
-- typed `Cog<C>` and `ValidateCog` policy validation;
-- bounded inert `Tag` provenance;
-- `ExecutionReport<O>` with Gear identity, Region, effect, typed output, and
-  ordered Tags;
-- `execute_read` / `execute_mut` central execution paths;
-- compile-fail evidence that read Gear authority cannot mutate;
-- passing Rust 1.85.0/stable qualification.
-
-R4 preserved the authority rule:
-
-```text
-caller chooses Region
--> caller creates Lens / LensMut
--> Gear receives only that bounded capability
-```
-
-A Gear does not receive Matrix storage or a provider from which it can request a
-broader Region. GAT/HRTB and dynamic-registry abstractions remain deferred until
-a concrete consumer demonstrates a need.
+Delivered static read/mutating Gear contracts, typed Cog validation, inert Tag
+provenance, ExecutionReport, deterministic built-ins, central execution paths,
+and compile-fail authority evidence while preserving the rule that a Gear
+receives only the caller-selected Lens/LensMut capability.
 
 ## R5 — API ergonomics and learning surface
 
 **Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #10
 
-**Accepted merge:**
-
-```text
-commit acd15be9d02d27e6189aadedad3620e9558efe8f
-tree   bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
-```
-
-R5 made the working R2–R4 library understandable without requiring
-rehabilitation history or source inspection. It established the README/crate
-rustdoc learning path, curated prelude and crate-root exports, task-oriented
-getting-started material, runnable quickstart and custom-Gear examples,
-downstream-style public API smoke coverage, explicit API-stability policy, and
-caller-facing documentation of the accepted authority/lifetime rules.
-
-R5 added no performance claims, Criterion, Rayon, backend abstraction,
-persistence, release/tagging, or downstream application integration.
+Established the recommended prelude and crate-root exports, getting-started
+material, runnable quickstart/custom-Gear examples, downstream public-API smoke
+coverage, API-stability policy, and documentation centered on the accepted
+Matrix/Lens/Gear/Cog/Tag model.
 
 ## R6 — Measure, then optimize
 
-**Status:** REVIEWABLE — TEAMLEAD/OWNER ACCEPTANCE PENDING
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #11
 
-**Baseline:**
-
-```text
-commit acd15be9d02d27e6189aadedad3620e9558efe8f
-tree   bb4e2d1bb1b33254653873c9d5a4a11ca97e5add
-```
-
-**Goal:** establish performance evidence before adding complexity, optimize only
-demonstrated waste, preserve the public API/authority boundary, and make an
-evidence-driven parallelism decision.
-
-Delivered candidate work:
-
-- exact Criterion 0.7.0 development-only dependency with default features
-  disabled and `cargo_bench_support` enabled;
-- `r6_selection` and `r6_transform` benchmark harnesses for three Matrix sizes,
-  five selection patterns, direct ndarray, Lens/LensMut, Gear execution, Lens
-  construction, and explicit copy paths;
-- a pre-optimization baseline showing that fixed-size Lens traversal incorrectly
-  scaled with unrelated parent Matrix cells;
-- an overhead budget declared before source optimization;
-- a targeted private implementation repair that creates checked ndarray Region
-  views and traverses only the selected data;
-- semantic regression coverage for row-major ordering, single-row/column,
-  empty/zero-dimensional selections, selected-only mutation, local access, and
-  foreign-Region rejection;
-- same-machine authoritative before/after Criterion evidence on the owner host;
-- structural allocation/copy accounting;
-- a documented profiling limitation rather than a host-policy workaround;
-- an explicit decision not to add Rayon because the repaired sequential path is
-  already approximately direct-ndarray speed.
-
-Predeclared candidate budgets all pass:
+**Accepted merge:**
 
 ```text
-100000x64 full Lens read / direct ndarray          0.990x <= 3.00x
-100000x64 interior Lens read / direct ndarray      0.921x <= 3.00x
-100000x64 full LensMut / direct ndarray             1.000x <= 3.00x
-100000x64 interior LensMut / direct ndarray         0.892x <= 3.00x
-1024x64 full Gear read / Lens                      0.997x <= 1.25x
-100000x64 full Gear read / Lens                    1.029x <= 1.25x
-1024x64 full Gear mutation / LensMut               1.196x <= 1.25x
-100000x64 full Gear mutation / LensMut             1.062x <= 1.25x
+commit 6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
+tree   919f8f800f1ffa3b4750def03f803a807ff25179
 ```
 
-A fixed 4 x 4 Lens read on the largest `100000 x 64` parent moved from
-30.694 ms to 7.242 ns in the authoritative owner-machine run, and candidate
-fixed-selection time remained essentially constant across all three parent
-shapes.
-
-Exit gate:
-
-- benchmark harness is reproducible and development-only;
-- accepted R5 behavior is measured before source optimization;
-- optimization is tied to an observed bottleneck rather than speculation;
-- fixed-size selection no longer scans unrelated parent cells;
-- dense Lens/LensMut and Gear overhead budgets pass;
-- allocation/copy behavior and profiling limitations are explicit;
-- no unsafe/public-backend/authority broadening is introduced;
-- Rayon or another parallel path is added only if measurement justifies it;
-- Rust 1.85.0 and stable code qualification pass;
-- final review head passes ordinary PR CI;
-- performance claims remain machine-specific and reproducible rather than
-  universal promises.
+R6 established reproducible Criterion evidence, found inherited parent-wide Lens
+traversal, repaired it with checked private ndarray Region views, preserved the
+public API and Gear authority boundary, documented allocation/copy behavior, and
+deferred Rayon because the repaired sequential path measured approximately at
+direct-ndarray speed.
 
 See [performance.md](performance.md) and
 [`development/2026-08-29-r6-measure-optimize.md`](development/2026-08-29-r6-measure-optimize.md).
 
-## R7 — Optional backends and integrations
+## R7 — Optional interchange and integrations
 
-**Status:** BLOCKED ON R6 TEAMLEAD/OWNER ACCEPTANCE AND MERGE
+**Status:** ACTIVE
 
-Candidate work includes serialization, durable representation, sparse/mapped
-storage, and backend/lending traits only after real implementations justify the
-abstraction. Optional persistence must not become a hidden mutation or authority
-channel.
+R7 is deliberately sliced so a stable inert interchange boundary exists before
+live storage or concrete external integrations are considered.
+
+### R7-A — Versioned dense snapshot interchange
+
+**Status:** AUTHORIZED — IN DEVELOPMENT / QUALIFICATION
+
+**Baseline:**
+
+```text
+commit 6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
+tree   919f8f800f1ffa3b4750def03f803a807ff25179
+```
+
+**Goal:** establish a Matrical-owned, versioned dense representation that can
+cross process/repository/storage boundaries without exposing ndarray or granting
+live backend authority.
+
+The bounded contract includes:
+
+- `MatrixSnapshot<T>` with private `version`, fixed-width `u64` dimensions, and
+  owned logical row-major values;
+- `DENSE_SNAPSHOT_VERSION = 1`;
+- borrowed O(n) cloning snapshot creation and a consuming no-`Clone` path;
+- checked reconstruction through existing `Shape`/`Matrix` invariants;
+- structural unsupported-version and dimension-conversion errors;
+- an optional exact Serde dependency and a dev/example-only JSON dependency;
+- deny-unknown-fields v1 deserialization;
+- a committed deterministic integer JSON fixture and semantic roundtrip tests;
+- default and all-feature qualification on Rust 1.85.0 and stable;
+- explicit format-neutral, untrusted-input, and caller-owned transport caveats.
+
+R7-A is specifically **not** a persistence engine or live backend abstraction.
+It adds no filesystem/database/network authority, sparse/mapped storage,
+`MatrixBackend`/`StorageBackend`, GAT/HRTB provider, Rayon path, or downstream
+consumer dependency. `MatrixSnapshot` is a specialized API and remains outside
+the everyday prelude.
+
+See [interchange.md](interchange.md) and
+[`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md).
+
+### R7-B — Evidence-selected next storage/integration slice
+
+**Status:** BLOCKED ON R7-A ACCEPTANCE AND MERGE
+
+After R7-A is accepted and merged, select any next R7 slice from concrete
+evidence rather than from a preferred integration target. Candidate needs may
+include Matrical-native persistence or durable storage, sparse/mapped
+representation, or a concrete external consumer that later demonstrates enough
+value to justify an adapter.
+
+Matrical core must remain independently useful. Any consumer-specific adapter
+belongs outside core in the consumer, a dedicated integration crate, or another
+explicit opt-in boundary. No named external project is the intended or preferred
+R7-B consumer.
+
+A real second live provider must exist before backend, lending, or provider
+traits are generalized. If no concrete second-provider or integration need is
+demonstrated, R7-B must not invent an abstraction merely to advance the roadmap.
 
 ## R8 — Release qualification
 
-**Status:** BLOCKED ON EARLIER GATES
+**Status:** BLOCKED ON R7 COMPLETION
 
 Prepare the first rehabilitated release candidate: version/compatibility decision,
 changelog and migration notes, package/license audit, MSRV/stable/downstream
-qualification, documentation/example audit, benchmark baseline, and explicit
-owner-controlled publication decision.
+qualification, documentation/example audit, benchmark baseline, snapshot-schema
+compatibility decision, and explicit owner-controlled publication decision.
 
-No version bump, tag, release date, or publication is authorized by R6.
+No version bump, tag, release date, or publication is authorized by R7-A.
 
 ## Advanced Rust policy
 
 GATs and HRTBs are tools, not rehabilitation goals. R3 found the concrete
-lifetime-generic Lens API clearer with one proven provider. R4 added an authority
-reason to keep that decision: a generic provider passed to a Gear could grant
-Region-selection authority broader than the caller-selected Lens.
+lifetime-generic Lens API clearer with one proven provider, and R4 established a
+least-authority reason not to give a Gear a general selector/provider.
 
-R6 does not reopen that public abstraction. Its optimization is private:
-Lens/LensMut retain the same lifetime-generic public surface while their internal
-borrow now points at the already selected ndarray view.
-
-A future GAT/HRTB abstraction still requires a concrete composability problem
-that cannot be expressed as clearly with the existing capability boundary.
+`MatrixSnapshot` does not reopen that decision: it is inert data, not a live
+Matrix provider. A future GAT/HRTB abstraction still requires a concrete second
+provider and a composability problem that cannot be expressed as clearly with
+the existing capability boundary.
 
 ## Cross-cutting requirements
 
-Testing, documentation, examples, dependency review, performance evidence, and
-authority analysis are part of every functional slice. They are not deferred
-cleanup.
+Testing, documentation, examples, dependency review, performance evidence,
+interchange compatibility, and authority analysis are part of every functional
+slice. They are not deferred cleanup.

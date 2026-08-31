@@ -8,20 +8,25 @@ not need the development evidence to learn the library.
 1. [Getting started](getting-started.md) — construct a Matrix, select a Region,
    borrow through Lens/LensMut, run built-in Gears, provide Cog policy, inspect
    reports/Tags, define a Gear, and handle errors.
-2. Crate rustdoc — the crate root explains the conceptual flow; `prelude` is the
+2. [Interchange](interchange.md) — create/reconstruct versioned dense snapshots,
+   understand the optional Serde feature, schema v1, and caller-owned transport.
+3. Crate rustdoc — the crate root explains the conceptual flow; `prelude` is the
    recommended import surface; `schematics` and `strategies` group deeper API
-   navigation.
-3. [`examples/r5_quickstart.rs`](../examples/r5_quickstart.rs) — canonical
+   navigation; `snapshot` is the specialized interchange surface.
+4. [`examples/r5_quickstart.rs`](../examples/r5_quickstart.rs) — canonical
    beginner program.
-4. [`examples/r5_custom_gear.rs`](../examples/r5_custom_gear.rs) — downstream
+5. [`examples/r5_custom_gear.rs`](../examples/r5_custom_gear.rs) — downstream
    static Gear extension with custom typed context.
+6. [`examples/r7_snapshot.rs`](../examples/r7_snapshot.rs) — in-memory JSON
+   interchange example, compiled only with the `serde` feature.
 
 ## API expectations
 
-- [API stability and deprecation](api-stability.md) — current 0.1.0 compatibility
-  position and how breaking changes are handled.
-- [Architecture vision](architecture/vision.md) — Matrix/Lens/Gear/Cog/Tag
-  responsibilities, authority boundaries, storage, and deferred abstractions.
+- [API stability and deprecation](api-stability.md) — current 0.1.0 Rust API and
+  snapshot-schema compatibility position.
+- [Architecture vision](architecture/vision.md) — Matrix/Lens/Gear/Cog/Tag and
+  snapshot responsibilities, authority boundaries, storage, and deferred
+  abstractions.
 - [Performance](performance.md) — R6 benchmark methodology, measured traversal
   result, allocation/copy accounting, and parallelism decision.
 - [Rehabilitation roadmap](roadmap.md) — ordered slice goals and exit gates.
@@ -49,6 +54,7 @@ history. They are review evidence, not prerequisites for ordinary API use.
 - [R4 transformation composition](development/2026-08-28-r4-transform-composition.md)
 - [R5 API learning surface](development/2026-08-29-r5-api-learning-surface.md)
 - [R6 measure and optimize](development/2026-08-29-r6-measure-optimize.md)
+- [R7-A versioned snapshot interchange](development/2026-08-30-r7a-versioned-snapshot.md)
 
 Consumer design notes remain under `architecture/consumers/` and inform future
 acceptance criteria without becoming Matrical's domain model.

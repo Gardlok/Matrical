@@ -225,6 +225,8 @@ dependencies = [
  "criterion",
  "crossbeam",
  "ndarray",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
