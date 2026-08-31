@@ -30,8 +30,8 @@ rehab/r7a-versioned-snapshot
 
 R7-A establishes an inert, Matrical-owned dense interchange representation. It
 does not add a live storage backend, persistence engine, sparse/mapped Matrix,
-backend/provider trait, GAT/HRTB provider, Strustegy dependency, or release
-qualification.
+backend/provider trait, GAT/HRTB provider, downstream-consumer dependency, or
+release qualification.
 
 The boundary is:
 
@@ -208,11 +208,15 @@ Dense snapshot v1 is not a sparse or mapped backend. R7-A does not add
 live-storage abstraction because Matrical still has one accepted live Matrix
 provider.
 
-Matrical core remains independently useful and has no Strustegy dependency. A
-future Strustegy adapter may use public Matrical APIs and transport/store
-`MatrixSnapshot` as inert data, but should live in Strustegy, a dedicated
-integration crate, or another explicit opt-in boundary. Gear authority remains
-bounded to caller-selected Lens/LensMut capabilities.
+Matrical core remains independently useful. External orchestration was considered
+hypothetically during R7-A planning, but no named integration goal or preferred
+consumer was adopted. A future concrete caller or adapter may use public Matrical
+APIs and transport/store `MatrixSnapshot` as inert data when evidence justifies
+that integration.
+
+Any consumer-specific adapter should live outside Matrical core in the consumer,
+a dedicated integration crate, or another explicit opt-in boundary. Gear
+authority remains bounded to caller-selected Lens/LensMut capabilities.
 
 ## CI contract
 

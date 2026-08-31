@@ -160,13 +160,17 @@ or a mapped backend merely to make an inert DTO share a live-provider trait.
 A real second live implementation must exist before Matrical generalizes the
 live storage boundary.
 
-## Future Strustegy boundary
+## Future consumer and integration boundary
 
-Matrical core remains independently useful and does not depend on Strustegy.
-A future Strustegy adapter may orchestrate Matrical through its public APIs and
-may transport/store `MatrixSnapshot` as inert interchange data. That adapter
-belongs in Strustegy, a dedicated integration crate, or another explicit opt-in
-boundary rather than in Matrical core.
+Matrical core remains independently useful and does not select or depend on any
+particular external consumer. External callers or adapters may use Matrical's
+public APIs and may transport or store `MatrixSnapshot` as inert interchange
+data without becoming part of Matrical core.
+
+If a concrete consumer later justifies an adapter, that adapter should live in
+the consumer, a dedicated integration crate, or another explicit opt-in
+boundary. No particular project is designated as the intended or preferred
+snapshot consumer.
 
 Gear execution authority remains bounded by caller-selected `Lens`/`LensMut`.
 Transporting a snapshot does not create Gear authority or grant a caller a live

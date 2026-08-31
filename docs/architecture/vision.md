@@ -218,16 +218,16 @@ reason not to give Gears a generic selector/provider. A future abstraction must
 solve a concrete second-provider composability problem without weakening that
 boundary.
 
-## Future Strustegy integration
+## Future consumer and integration boundary
 
-Matrical core must remain independently useful. Strustegy may eventually
-orchestrate Matrical through public APIs, and `MatrixSnapshot` provides inert data
-an adapter may transport or store. Such an adapter should live in Strustegy, a
-dedicated integration crate, or another explicit opt-in boundary.
+Matrical core must remain independently useful and does not select a preferred
+external consumer. Concrete callers may use public Matrical APIs and may move
+`MatrixSnapshot` as inert data without becoming part of the core architecture.
 
-Matrical does not depend on Strustegy in R7-A and does not invent placeholder
-Strustegy traits. Any future orchestration still leaves Gear execution bounded by
-the caller-selected Lens/LensMut.
+If a later consumer demonstrates enough value to justify an adapter, that
+adapter should live outside Matrical core in the consumer, a dedicated
+integration crate, or another explicit opt-in boundary. Any such orchestration
+still leaves Gear execution bounded by the caller-selected Lens/LensMut.
 
 ## Concurrency and performance
 
@@ -272,7 +272,7 @@ Default versus `serde`-enabled normal dependency trees are qualified separately.
 - Unsafe disjoint mutable Lens splitting.
 - Giving a Gear arbitrary Region-selection authority.
 - Runtime Gear registries or DI containers without a concrete consumer need.
-- Direct Strustegy dependency inside Matrical core.
+- Direct dependency on a downstream orchestrator or consumer inside Matrical core.
 - Treating one serialization format as universally faithful for every `T`.
 - Treating generic deserialization as universal resource-exhaustion protection.
 - Using advanced Rust syntax or concurrency machinery without concrete benefit.

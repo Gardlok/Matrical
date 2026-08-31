@@ -113,7 +113,7 @@ See [performance.md](performance.md) and
 **Status:** ACTIVE
 
 R7 is deliberately sliced so a stable inert interchange boundary exists before
-live storage or orchestration integrations are considered.
+live storage or concrete external integrations are considered.
 
 ### R7-A — Versioned dense snapshot interchange
 
@@ -146,25 +146,31 @@ The bounded contract includes:
 
 R7-A is specifically **not** a persistence engine or live backend abstraction.
 It adds no filesystem/database/network authority, sparse/mapped storage,
-`MatrixBackend`/`StorageBackend`, GAT/HRTB provider, Rayon path, or Strustegy
-dependency. `MatrixSnapshot` is a specialized API and remains outside the
-everyday prelude.
+`MatrixBackend`/`StorageBackend`, GAT/HRTB provider, Rayon path, or downstream
+consumer dependency. `MatrixSnapshot` is a specialized API and remains outside
+the everyday prelude.
 
 See [interchange.md](interchange.md) and
 [`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md).
 
-### R7-B — Real integration evaluation
+### R7-B — Evidence-selected next storage/integration slice
 
 **Status:** BLOCKED ON R7-A ACCEPTANCE AND MERGE
 
-If R7-A is accepted and merged, evaluate an actual next integration against a
-real consumer/API. A Strustegy adapter is a candidate, but Matrical core must
-remain independently useful and must not invent fake Strustegy traits. Any
-adapter should live in Strustegy, a dedicated integration crate, or another
-explicit opt-in boundary and must preserve Lens/LensMut Gear authority.
+After R7-A is accepted and merged, select any next R7 slice from concrete
+evidence rather than from a preferred integration target. Candidate needs may
+include Matrical-native persistence or durable storage, sparse/mapped
+representation, or a concrete external consumer that later demonstrates enough
+value to justify an adapter.
 
-Sparse or mapped storage remains a separate future decision. A real second live
-provider must exist before backend/lending traits are generalized.
+Matrical core must remain independently useful. Any consumer-specific adapter
+belongs outside core in the consumer, a dedicated integration crate, or another
+explicit opt-in boundary. No named external project is the intended or preferred
+R7-B consumer.
+
+A real second live provider must exist before backend, lending, or provider
+traits are generalized. If no concrete second-provider or integration need is
+demonstrated, R7-B must not invent an abstraction merely to advance the roadmap.
 
 ## R8 — Release qualification
 
