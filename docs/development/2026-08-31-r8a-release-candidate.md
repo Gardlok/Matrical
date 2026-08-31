@@ -123,29 +123,46 @@ be explicit rather than silently reinterpreting version 1.
 
 ## Crossbeam decision
 
-Baseline source search found Crossbeam only in crate-internal historical
-`schematics::vector` prototype residue through `crossbeam::queue::SegQueue`.
-`Vector` is not part of the supported public surface and no current Matrix,
-Lens, Gear, snapshot, example, test, or benchmark contract requires it.
+Crossbeam is historical in character but is still real compiled compatibility
+usage. `schematics::element` uses `SegQueue`, `ArrayQueue`, and `AtomicCell`, and
+the documentation-hidden historical `ElementOperation` contract names
+`ElementContext`. The crate-internal historical Vector also uses `SegQueue`.
 
-R8-A therefore removes the historical Vector module and Crossbeam normal runtime
-dependency. This is the one dependency cleanup explicitly authorized by the
-mission and does not broaden into general prototype cleanup.
+An exploratory R8-A removal proved that deleting only the obvious Vector residue
+was insufficient: the ordinary locked build then failed because
+`ElementContext` still requires Crossbeam. Removing Crossbeam completely would
+therefore require deleting or redesigning retained compatibility residue rather
+than merely dropping an unused normal dependency.
+
+Decision:
+
+```text
+current usage: retained historical ElementContext/ElementOperation and Vector residue
+keep/remove:   KEEP
+authority:     no supported Matrix/Lens/Gear/snapshot behavior depends on it
+rationale:     removal would broaden R8-A into compatibility/API cleanup
+```
+
+R8-A keeps Crossbeam and leaves any later removal to a separately reviewed
+prototype-compatibility decision.
 
 ## Direct dependency and license audit
 
-Lock-resolved baseline/candidate versions and roles:
+Lock-resolved versions and roles:
 
 | Dependency | Version | Scope | Purpose | Direct license |
 | --- | --- | --- | --- | --- |
 | ndarray | 0.15.6 | normal | private dense Matrix backend | MIT OR Apache-2.0 |
+| crossbeam | 0.8.4 | normal | retained historical compatibility residue | MIT OR Apache-2.0 |
 | serde | 1.0.229 | optional normal | MatrixSnapshot Serialize/Deserialize | MIT OR Apache-2.0 |
 | criterion | 0.7.0 | dev-only | benchmark harness | Apache-2.0 OR MIT |
 | serde_json | 1.0.151 | dev-only | snapshot tests/example | MIT OR Apache-2.0 |
-| crossbeam | 0.8.4 baseline only | removed | historical internal Vector queue | MIT OR Apache-2.0 |
 
 No direct dependency license identified above conflicts with Matrical's MIT
 distribution. CI records the default and serde-enabled normal dependency trees.
+
+Because the final dependency graph is unchanged from the accepted R7 baseline,
+`Cargo.lock` should remain byte-identical; CI records both SHA-256 values.
 
 ## Package, downstream, examples, and full qualification
 

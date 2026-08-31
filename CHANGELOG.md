@@ -35,9 +35,6 @@ publication authorization.
   accepted R6 owner-machine measurements showed the repaired dense path at
   approximately direct-ndarray traversal performance while preserving the public
   authority contract.
-- Removed Crossbeam from the normal dependency graph because its only remaining
-  use was crate-internal historical Vector prototype residue outside the
-  supported API.
 
 ### Behavioral and compatibility boundaries
 
