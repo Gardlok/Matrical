@@ -1,6 +1,6 @@
 //! Matrical is a semantic matrix-transformation library built around validated
 //! geometry, borrowing selections, typed transformations, contextual policy,
-//! and inert provenance.
+//! inert provenance, and explicit interchange snapshots.
 //!
 //! The normal flow is deliberately small:
 //!
@@ -19,10 +19,14 @@
 //! to the successful [`ExecutionReport`]; Tags are never passed into the Gear and
 //! cannot steer execution.
 //!
+//! [`MatrixSnapshot`] is the specialized, versioned dense interchange boundary.
+//! It is intentionally not in [`prelude`]: callers opt into snapshot/serialization
+//! concerns explicitly rather than expanding the everyday Matrix/Lens/Gear API.
+//!
 //! Fallible public operations return [`MatricalError`]. Construction, indexing,
-//! Region validation, context resolution, and policy validation are therefore
-//! ordinary `Result`-based caller boundaries rather than panic-based control
-//! flow.
+//! Region validation, context resolution, policy validation, and snapshot
+//! reconstruction are therefore ordinary `Result`-based caller boundaries rather
+//! than panic-based control flow.
 //!
 //! For everyday use, import [`prelude`]. The [`schematics`] and [`strategies`]
 //! modules provide the same supported API grouped by concept. Historical
@@ -91,6 +95,8 @@ pub mod operations;
 
 /// Validated matrix geometry and owned storage.
 pub mod schematics;
+/// Versioned inert dense representations for process/repository/storage interchange.
+pub mod snapshot;
 /// Borrowing views, typed transformations, context, and provenance.
 pub mod strategies;
 
@@ -99,6 +105,7 @@ pub use error::MatricalError;
 pub use error::MatricalErrorType;
 
 pub use schematics::{Index, Matrix, Region, Shape};
+pub use snapshot::{MatrixSnapshot, DENSE_SNAPSHOT_VERSION};
 pub use strategies::{
     execute_mut, execute_read, AddScalarGear, ClampGear, ClampPolicy, Cog, ExecutionReport,
     GearEffect, Lens, LensMut, MutGear, ReadGear, ScalarPolicy, ScaleGear, SumGear, Tag, TagStage,
@@ -110,7 +117,8 @@ pub use strategies::{
 ///
 /// The prelude is intentionally curated. It contains the high-frequency R2–R4
 /// API and excludes historical operation scaffolding, prototype Vector/Element
-/// types, `MatrixContext`, dependency types, and implementation details.
+/// types, `MatrixContext`, dependency types, implementation details, and the
+/// specialized `MatrixSnapshot` interchange API.
 pub mod prelude {
     pub use crate::{
         execute_mut, execute_read, AddScalarGear, ClampGear, ClampPolicy, Cog, ExecutionReport,
