@@ -1,6 +1,6 @@
 # Matrical active development
 
-**Last updated:** 2026-08-31
+**Last updated:** 2026-09-01
 
 ## Accepted campaign baseline
 
@@ -32,7 +32,7 @@ R6:   COMPLETE — OWNER ACCEPTED — MERGED IN PR #11
 R7-A: COMPLETE — OWNER ACCEPTED — MERGED IN PR #12
 R7-B: DEFERRED — no demonstrated second-provider/integration need
 R7:   COMPLETE — OWNER ACCEPTED
-R8-A: AUTHORIZED — RELEASE-CANDIDATE QUALIFICATION
+R8-A: REVIEWABLE — READY FOR OWNER RELEASE DECISION
 ```
 
 R7-B's deferral is evidence-based and temporary in meaning: sparse/mapped
@@ -40,11 +40,12 @@ storage, another live provider, or an external integration was not justified by
 a concrete current need. Those possibilities were not rejected forever and may
 be reconsidered when a real second-provider or integration problem exists.
 
-R8-A starts from the exact accepted R7 baseline above on
-`rehab/r8a-release-candidate`. Its bounded mission is to determine, with
-mechanical evidence, whether the accepted library can be packaged, documented,
-consumed from its package artifact, and versioned as a real Rust release without
-repository-only assumptions.
+R8-A started from the exact accepted R7 baseline above on
+`rehab/r8a-release-candidate`. Qualification run 36 passed on Rust 1.85.0 and
+stable, including package verification, independent default/Serde consumers from
+the unpacked package artifact, crates.io reconnaissance, publish dry-run, and
+mechanical audits. The candidate is ready for Teamlead review and an explicit
+owner release decision.
 
 R8-A does not authorize `cargo publish`, a Git tag, a GitHub Release, a release
 date, persistence/storage expansion, or external project integration.
@@ -193,14 +194,14 @@ than hidden R8-A scope.
 
 ## Current gate
 
-R8-A becomes reviewable only after the final exact branch head passes package,
+R8-A is reviewable after Qualification run 36 passed package,
 packaged-downstream, Rust 1.85/stable default/all-feature, examples, benchmark
-compile, dependency/license, documentation, and mechanical qualification with
-GitHub CI evidence.
+compile, dependency/license, documentation, registry, dry-run, and mechanical
+qualification.
 
 ```text
 R1-R7: COMPLETE — OWNER ACCEPTED
-R8-A: IN DEVELOPMENT / QUALIFICATION
+R8-A: REVIEWABLE — READY FOR OWNER RELEASE DECISION
 ```
 
 A successful R8-A exit is either `READY FOR OWNER RELEASE DECISION` or

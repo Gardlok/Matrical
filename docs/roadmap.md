@@ -24,7 +24,7 @@
 
 **Accepted R7 merge:** `f28fc380926c8175ff9b5faeb092be5bd7426245`
 
-**Current phase:** R8-A authorized — release-candidate qualification
+**Current phase:** R8-A reviewable — ready for owner release decision
 
 This roadmap is ordered. Later work may be researched early, but implementation
 must not bypass an earlier invariant or acceptance gate.
@@ -157,11 +157,11 @@ preserve caller-selected Lens/LensMut Gear authority.
 
 ## R8 — Release qualification
 
-**Status:** ACTIVE THROUGH AUTHORIZED R8-A
+**Status:** R8-A REVIEWABLE
 
 ### R8-A — First rehabilitated release candidate
 
-**Status:** AUTHORIZED — IN DEVELOPMENT / QUALIFICATION
+**Status:** REVIEWABLE — READY FOR OWNER RELEASE DECISION
 
 **Baseline:**
 
