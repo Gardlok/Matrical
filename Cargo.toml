@@ -11,17 +11,17 @@ readme = "README.md"
 keywords = ["matrix", "selection", "transformation"]
 categories = ["data-structures"]
 include = [
-    "Cargo.toml",
-    "Cargo.lock",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md",
-    "src/**",
-    "examples/**",
-    "benches/**",
-    "docs/getting-started.md",
-    "docs/interchange.md",
-    "docs/api-stability.md",
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/LICENSE",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/src/**",
+    "/examples/**",
+    "/benches/**",
+    "/docs/getting-started.md",
+    "/docs/interchange.md",
+    "/docs/api-stability.md",
 ]
 
 [features]
