@@ -252,7 +252,11 @@ jobs:
           QUAL_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/matrical/r8a/${{ matrix.toolchain }}"
           mkdir -p "$QUAL_ROOT"
 
-          HTTP_CODE="$(curl -sS -o "$QUAL_ROOT/cratesio-matrical.json" -w '%{http_code}' \
+          HTTP_CODE="$(curl -sS \
+            --user-agent 'matrical-r8a-qualification/0.1.0 (https://github.com/Gardlok/Matrical)' \
+            --header 'Accept: application/json' \
+            -o "$QUAL_ROOT/cratesio-matrical.json" \
+            -w '%{http_code}' \
             https://crates.io/api/v1/crates/matrical)"
           printf 'crates.io API status: %s\n' "$HTTP_CODE"
           if [ "$HTTP_CODE" = "200" ]; then
