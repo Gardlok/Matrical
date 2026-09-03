@@ -1,6 +1,6 @@
 # Matrical
 
-**Status: R1–R7 owner accepted; R8-A release-candidate qualification active; version 0.1.0**
+**Status: version 0.1.0 owner-authorized for release; R1–R8-A complete**
 
 Matrical is a semantic matrix-transformation library built around validated
 geometry, borrowing selections, typed transformations, contextual policy,
@@ -9,10 +9,10 @@ dense `ndarray::Array2<T>` backend while exposing a Matrical-owned contract for
 shape, selection, transformation authority, execution reporting, and
 interchange.
 
-The accepted library is qualified on the declared Rust 1.85.0 MSRV and current
-stable through repository CI. R8-A is determining whether `0.1.0` is ready for an
-owner release decision. **No crates.io publication, Git tag, GitHub Release, or
-release date is authorized merely because this branch qualifies.**
+Version `0.1.0` is the first rehabilitated release line. It is qualified on the
+declared Rust 1.85.0 MSRV and current stable through repository CI, including
+packaged-artifact downstream consumers. The owner authorized this release on
+2026-09-02 after R8-A Teamlead acceptance.
 
 ## Core vocabulary
 
@@ -39,25 +39,29 @@ Matrix
   -> ExecutionReport (+ Tags)
 ```
 
-## Using the release candidate before publication
+## Using 0.1.0
 
-During R8-A review, use a repository/path dependency rather than implying a
-registry release exists:
+For the registry release:
 
 ```toml
 [dependencies]
-matrical = { path = "../Matrical" }
+matrical = "0.1.0"
 ```
 
 For snapshot serialization through Serde:
 
 ```toml
 [dependencies]
-matrical = { path = "../Matrical", features = ["serde"] }
+matrical = { version = "0.1.0", features = ["serde"] }
 ```
 
-After a separate owner-authorized publication, downstream users may replace that
-path dependency with the exact released registry version.
+A repository/path dependency remains useful when deliberately testing an
+unreleased checkout:
+
+```toml
+[dependencies]
+matrical = { path = "../Matrical" }
+```
 
 ## Quick start
 
@@ -170,7 +174,7 @@ format limitations, and the caller-owned transport boundary.
 Matrical does not give a Gear direct Matrix or arbitrary Region-selection
 authority. Tags are provenance rather than a command channel.
 
-See [API stability](docs/api-stability.md) for the candidate SemVer and snapshot
+See [API stability](docs/api-stability.md) for the `0.1.x` SemVer and snapshot
 compatibility policy.
 
 ## Performance posture
@@ -182,8 +186,8 @@ approximately direct-ndarray performance. Those measurements are evidence, not a
 universal throughput promise.
 
 The accepted execution contract remains deterministic and sequential; Rayon is
-not part of the release candidate because R6 did not demonstrate a measured need
-for parallel runtime machinery.
+not part of `0.1.0` because R6 did not demonstrate a measured need for parallel
+runtime machinery.
 
 The detailed benchmark evidence remains in the repository's
 [performance report](https://github.com/Gardlok/Matrical/blob/main/docs/performance.md).
@@ -199,17 +203,14 @@ The package ships runnable examples for the accepted progression:
 - `r5_custom_gear`
 - `r7_snapshot` (`serde` feature required)
 
-R8-A qualifies every applicable example on Rust 1.85.0 and stable.
+The `0.1.0` release qualification exercises every applicable example on Rust
+1.85.0 and stable.
 
 ## Release posture
 
-`CHANGELOG.md` describes the `0.1.0` unreleased release candidate. The repository
+`CHANGELOG.md` records the `0.1.0` release dated 2026-09-02. The repository
 maintainer procedure is in
 [`docs/release.md`](https://github.com/Gardlok/Matrical/blob/main/docs/release.md).
-
-R8-A may conclude either `READY FOR OWNER RELEASE DECISION` or
-`NOT RELEASE READY — BLOCKERS IDENTIFIED`. Neither result automatically performs
-or authorizes publication.
 
 Repository-only campaign material remains available through the
 [documentation map](https://github.com/Gardlok/Matrical/blob/main/docs/README.md),
