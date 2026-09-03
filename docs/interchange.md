@@ -52,7 +52,7 @@ ordinary setters.
 ## Release compatibility policy
 
 Snapshot schema versioning and the Rust crate version are separate contracts.
-For the R8-A release candidate, dense schema v1 follows this policy:
+For the released `0.1.x` line, dense schema v1 follows this policy:
 
 > Within a released line, incompatible dense snapshot semantics must not silently
 > change under version 1. A future incompatible representation uses another
@@ -122,15 +122,18 @@ carry zero row-major values and reconstruct successfully.
 
 ## Optional Serde feature
 
-Serialization is opt-in. Before any owner-authorized registry publication, use a
-repository/path dependency rather than implying crates.io availability:
+For the registry release:
+
+```toml
+matrical = { version = "0.1.0", features = ["serde"] }
+```
+
+A repository/path dependency remains appropriate when deliberately testing an
+unreleased checkout:
 
 ```toml
 matrical = { path = "../Matrical", features = ["serde"] }
 ```
-
-After publication, downstream callers may instead use the exact owner-authorized
-registry release.
 
 The `serde` feature derives `Serialize` and `Deserialize` for
 `MatrixSnapshot<T>` using ordinary generic Serde bounds. It does not make

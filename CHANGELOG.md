@@ -4,11 +4,11 @@ All notable changes to Matrical's supported release-facing surface are recorded
 here. Repository rehabilitation history remains available under
 `docs/development/` and is intentionally not replayed commit-by-commit here.
 
-## [0.1.0] - Unreleased release candidate
+## [0.1.0] - 2026-09-02
 
-This entry describes the first rehabilitated release candidate. It is not a
-publication announcement, release date, tag, GitHub Release, or crates.io
-publication authorization.
+This is the first rehabilitated Matrical release. The owner authorized release of
+version `0.1.0` on 2026-09-02 after R8-A package, downstream-consumer, MSRV,
+stable, registry, publish-dry-run, documentation, and mechanical qualification.
 
 ### Added
 
