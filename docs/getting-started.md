@@ -223,7 +223,9 @@ The current conversion names intentionally encode ownership and copy behavior:
 
 R5 adds no `From`/`Into` implementation that would hide fallibility or allocation.
 
-Next read the [architecture vision](architecture/vision.md) for responsibility and
-authority boundaries, [API stability policy](api-stability.md) for the current
-0.1.0 compatibility position, and the [roadmap](roadmap.md) for later measurement
-and release gates.
+Next read the
+[architecture vision](https://github.com/Gardlok/Matrical/blob/main/docs/architecture/vision.md)
+for responsibility and authority boundaries, [API stability policy](api-stability.md)
+for the current 0.1.0 compatibility position, and the
+[roadmap](https://github.com/Gardlok/Matrical/blob/main/docs/roadmap.md) for later
+measurement and release gates.

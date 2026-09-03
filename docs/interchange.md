@@ -49,6 +49,19 @@ and accepts. Snapshot fields remain private; callers inspect them through
 read-only accessors and cannot independently change version or shape metadata by
 ordinary setters.
 
+## Release compatibility policy
+
+Snapshot schema versioning and the Rust crate version are separate contracts.
+For the R8-A release candidate, dense schema v1 follows this policy:
+
+> Within a released line, incompatible dense snapshot semantics must not silently
+> change under version 1. A future incompatible representation uses another
+> explicit snapshot schema version.
+
+This is not a promise that every future Matrical release must support v1
+indefinitely. Any later migration or retirement decision must be explicit rather
+than reinterpreting version 1 in place. See [API stability](api-stability.md).
+
 ## Checked reconstruction
 
 `MatrixSnapshot::into_matrix()` fails closed unless all reconstruction invariants
@@ -109,11 +122,15 @@ carry zero row-major values and reconstruct successfully.
 
 ## Optional Serde feature
 
-Serialization is opt-in:
+Serialization is opt-in. Before any owner-authorized registry publication, use a
+repository/path dependency rather than implying crates.io availability:
 
 ```toml
-matrical = { version = "0.1.0", features = ["serde"] }
+matrical = { path = "../Matrical", features = ["serde"] }
 ```
+
+After publication, downstream callers may instead use the exact owner-authorized
+registry release.
 
 The `serde` feature derives `Serialize` and `Deserialize` for
 `MatrixSnapshot<T>` using ordinary generic Serde bounds. It does not make
@@ -146,21 +163,23 @@ Generic Serde deserialization is not itself a transport-level resource limiter.
 Callers accepting untrusted documents must bound document size, nesting,
 allocation, and related resource use at the transport/format layer.
 
-R7-A's fail-closed guarantee is about semantic Matrix reconstruction after a
+Matrical's fail-closed guarantee is about semantic Matrix reconstruction after a
 snapshot exists. Checking `row_major.len()` after deserialization does not by
 itself guarantee bounded memory consumption while parsing input.
 
 ## Dense today; sparse and mapped later
 
-Snapshot v1 is specifically a dense logical representation. Future sparse or
-mapped representations are separate schema/storage decisions. R7-A does not add
-`MatrixBackend`, `StorageBackend`, a lending/GAT/HRTB provider, a sparse Matrix,
-or a mapped backend merely to make an inert DTO share a live-provider trait.
+Snapshot v1 is specifically a dense logical representation. Sparse or mapped
+representations remain separate schema/storage decisions. R7-B was deferred
+because no concrete second-provider/integration need was demonstrated, not
+because those approaches were rejected forever.
 
-A real second live implementation must exist before Matrical generalizes the
-live storage boundary.
+Matrical does not add `MatrixBackend`, `StorageBackend`, a lending/GAT/HRTB
+provider, a sparse Matrix, or a mapped backend merely to make an inert DTO share
+a live-provider trait. A real second live implementation and composability need
+must exist before Matrical generalizes the live storage boundary.
 
-## Future consumer and integration boundary
+## Consumer and integration boundary
 
 Matrical core remains independently useful and does not select or depend on any
 particular external consumer. External callers or adapters may use Matrical's

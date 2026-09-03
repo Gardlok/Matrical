@@ -31,9 +31,20 @@ jobs:
           rustup override set "${{ matrix.toolchain }}"
 
       - name: Record toolchain and dependency evidence
+        shell: bash
         run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="$(git rev-parse HEAD^)"
+          fi
+
           rustc --version --verbose
           cargo --version
+          printf '%s\n' '=== Cargo.lock SHA-256: accepted base ==='
+          git show "$BASE:Cargo.lock" | sha256sum
+          printf '%s\n' '=== Cargo.lock SHA-256: candidate ==='
           sha256sum Cargo.lock
           printf '%s\n' '=== default normal dependency graph ==='
           cargo tree --locked -e normal
@@ -70,14 +81,216 @@ jobs:
       - name: Documentation all features
         run: cargo doc --locked --no-deps --all-features
 
-      - name: Compile benchmarks
-        run: cargo bench --locked --no-run
-
-      - name: Mechanical R7-A audit
+      - name: Run shipped examples
         shell: bash
         run: |
           set -euo pipefail
-          BASE="$(git merge-base HEAD origin/main)"
+          for example in \
+            r2_core_matrix \
+            r3_lens \
+            r4_transform \
+            r5_quickstart \
+            r5_custom_gear
+          do
+            cargo run --locked --example "$example"
+          done
+          cargo run --locked --features serde --example r7_snapshot
+
+      - name: Compile benchmarks
+        run: cargo bench --locked --no-run
+
+      - name: Package and prove independent downstream consumption
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          QUAL_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/matrical/r8a/${{ matrix.toolchain }}"
+          rm -rf "$QUAL_ROOT"
+          mkdir -p "$QUAL_ROOT"
+
+          printf '%s\n' '=== cargo package --list ==='
+          cargo package --locked --list | tee "$QUAL_ROOT/package-list.txt"
+
+          if grep -Eq '(^|/)(\.github|\.vscode|docs/development|docs/prompts|target)(/|$)|\.crate$' \
+            "$QUAL_ROOT/package-list.txt"; then
+            printf '%s\n' 'STOP: repository-development/generated clutter is packaged'
+            exit 1
+          fi
+
+          cargo package --locked
+
+          ARCHIVE="$(find target/package -maxdepth 1 -type f -name 'matrical-*.crate' -print -quit)"
+          test -n "$ARCHIVE"
+          printf 'package archive: %s\n' "$ARCHIVE"
+          printf 'archive bytes: '
+          stat -c '%s' "$ARCHIVE"
+
+          UNPACK_ROOT="$QUAL_ROOT/unpacked"
+          mkdir -p "$UNPACK_ROOT"
+          tar -xzf "$ARCHIVE" -C "$UNPACK_ROOT"
+          PKG_DIR="$(find "$UNPACK_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'matrical-*' -print -quit)"
+          test -n "$PKG_DIR"
+          printf 'unpacked bytes: '
+          du -sb "$PKG_DIR" | cut -f1
+
+          python3 - "$PKG_DIR" <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          root = pathlib.Path(sys.argv[1]).resolve()
+          link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+          broken = []
+          for path in root.rglob("*.md"):
+              text = path.read_text(encoding="utf-8")
+              for target in link_re.findall(text):
+                  target = target.strip().split()[0].strip("<>")
+                  if not target or target.startswith(("http://", "https://", "mailto:", "#")):
+                      continue
+                  target = target.split("#", 1)[0]
+                  resolved = (path.parent / target).resolve()
+                  if root not in resolved.parents and resolved != root:
+                      broken.append(f"{path.relative_to(root)}: escapes package: {target}")
+                  elif not resolved.exists():
+                      broken.append(f"{path.relative_to(root)}: missing: {target}")
+          if broken:
+              raise SystemExit("broken packaged Markdown links:\n" + "\n".join(broken))
+          print("packaged Markdown links: PASS")
+          PY
+
+          DEFAULT="$QUAL_ROOT/default-consumer"
+          mkdir -p "$DEFAULT/src"
+          cat > "$DEFAULT/Cargo.toml" <<EOF
+          [package]
+          name = "matrical-r8a-default-smoke"
+          version = "0.0.0"
+          edition = "2021"
+
+          [dependencies]
+          matrical = { path = "$PKG_DIR" }
+          EOF
+          cat > "$DEFAULT/src/main.rs" <<'RS'
+          use matrical::prelude::*;
+
+          fn main() -> Result<(), MatricalError> {
+              let shape = Shape::new(2, 3)?;
+              let mut matrix = Matrix::from_row_major(
+                  shape,
+                  vec![1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0],
+              )?;
+              let region = Region::new(shape, 0..2, 1..3)?;
+
+              {
+                  let lens = matrix.lens(region)?;
+                  let report = execute_read(&SumGear, &lens, &Cog::new(()), Vec::new())?;
+                  assert_eq!(*report.output(), 16.0);
+              }
+
+              {
+                  let mut lens = matrix.lens_mut(region)?;
+                  let report = execute_mut(
+                      &AddScalarGear,
+                      &mut lens,
+                      &Cog::new(ScalarPolicy::new(1.0)),
+                      Vec::new(),
+                  )?;
+                  assert_eq!(*report.output(), 4);
+              }
+
+              let snapshot = matrix.snapshot();
+              assert_eq!(snapshot.version(), 1);
+              let rebuilt = snapshot.into_matrix()?;
+              assert_eq!(rebuilt.shape(), shape);
+              assert_eq!(rebuilt.into_row_major(), vec![1.0, 3.0, 4.0, 4.0, 6.0, 7.0]);
+              Ok(())
+          }
+          RS
+          (
+            cd "$DEFAULT"
+            cargo generate-lockfile
+            cargo run --locked
+          )
+
+          SERDE="$QUAL_ROOT/serde-consumer"
+          mkdir -p "$SERDE/src"
+          cat > "$SERDE/Cargo.toml" <<EOF
+          [package]
+          name = "matrical-r8a-serde-smoke"
+          version = "0.0.0"
+          edition = "2021"
+
+          [dependencies]
+          matrical = { path = "$PKG_DIR", features = ["serde"] }
+          serde_json = "=1.0.151"
+          EOF
+          cat > "$SERDE/src/main.rs" <<'RS'
+          use matrical::{Matrix, MatrixSnapshot, Shape};
+
+          fn main() -> Result<(), Box<dyn std::error::Error>> {
+              let shape = Shape::new(2, 2)?;
+              let matrix = Matrix::from_row_major(shape, vec![1_i64, 2, 3, 4])?;
+              let snapshot = matrix.into_snapshot();
+              let encoded = serde_json::to_string(&snapshot)?;
+              let decoded: MatrixSnapshot<i64> = serde_json::from_str(&encoded)?;
+              let rebuilt = decoded.into_matrix()?;
+              assert_eq!(rebuilt.shape(), shape);
+              assert_eq!(rebuilt.into_row_major(), vec![1, 2, 3, 4]);
+              Ok(())
+          }
+          RS
+          (
+            cd "$SERDE"
+            cargo generate-lockfile
+            cargo run --locked
+          )
+
+      - name: crates.io reconnaissance and publish dry-run
+        if: matrix.toolchain == 'stable'
+        shell: bash
+        run: |
+          set -euo pipefail
+          QUAL_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/matrical/r8a/${{ matrix.toolchain }}"
+          mkdir -p "$QUAL_ROOT"
+
+          HTTP_CODE="$(curl -sS \
+            --user-agent 'matrical-r8a-qualification/0.1.0 (https://github.com/Gardlok/Matrical)' \
+            --header 'Accept: application/json' \
+            -o "$QUAL_ROOT/cratesio-matrical.json" \
+            -w '%{http_code}' \
+            https://crates.io/api/v1/crates/matrical)"
+          printf 'crates.io API status: %s\n' "$HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            python3 - "$QUAL_ROOT/cratesio-matrical.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          crate = data.get("crate", {})
+          versions = data.get("versions", [])
+          print("registry package:", crate.get("id"))
+          print("registry versions:", ", ".join(v.get("num", "?") for v in versions) or "none")
+          PY
+          elif [ "$HTTP_CODE" = "404" ]; then
+            printf '%s\n' 'registry package: absent (no current crate record)'
+            printf '%s\n' 'registry versions: none'
+          else
+            printf '%s\n' 'STOP: crates.io registry reconnaissance unavailable'
+            cat "$QUAL_ROOT/cratesio-matrical.json" || true
+            exit 1
+          fi
+
+          cargo publish --dry-run --locked 2>&1 | tee "$QUAL_ROOT/publish-dry-run.txt"
+
+      - name: Mechanical R8-A audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="$(git rev-parse HEAD^)"
+          fi
+
           git diff --check "$BASE" HEAD
 
           python3 - "$BASE" <<'PY'
@@ -96,24 +309,21 @@ jobs:
               "Cargo.toml",
               "Cargo.lock",
               "README.md",
-              "src/error.rs",
-              "src/lib.rs",
-              "src/snapshot.rs",
-              "examples/r7_snapshot.rs",
-              "tests/r7_snapshot.rs",
-              "tests/r7_snapshot_serde.rs",
-              "tests/fixtures/r7_dense_snapshot_v1.json",
+              "CHANGELOG.md",
+              "src/schematics/mod.rs",
+              "src/schematics/vector.rs",
               "docs/README.md",
               "docs/active-development.md",
               "docs/api-stability.md",
-              "docs/architecture/vision.md",
+              "docs/getting-started.md",
               "docs/interchange.md",
               "docs/roadmap.md",
-              "docs/development/2026-08-30-r7a-versioned-snapshot.md",
+              "docs/release.md",
+              "docs/development/2026-08-31-r8a-release-candidate.md",
           }
           unexpected = sorted(set(changed) - allowed)
           if unexpected:
-              raise SystemExit(f"unexpected R7-A paths: {unexpected}")
+              raise SystemExit(f"unexpected R8-A paths: {unexpected}")
 
           missing_newline = []
           broken_links = []
@@ -140,17 +350,18 @@ jobs:
               raise SystemExit(f"missing final newline: {missing_newline}")
           if broken_links:
               raise SystemExit("broken relative links:\n" + "\n".join(broken_links))
+          print("Markdown relative links: PASS")
+          print("final newlines: PASS")
           PY
 
-          if git diff --unified=0 "$BASE" HEAD -- '*.rs' \
-            | grep '^+' \
-            | grep -v '^+++' \
-            | grep -Eq '\bunsafe\b'; then
-            echo 'new unsafe Rust detected'
+          if git grep -nE '\bunsafe[[:space:]]*(\{|fn[[:space:]]|impl[[:space:]]|trait[[:space:]]|extern[[:space:]])' -- '*.rs'; then
+            printf '%s\n' 'STOP: unsafe Rust construct present; review required'
             exit 1
           fi
+          printf '%s\n' 'unsafe audit: PASS (no unsafe construct in tracked Rust source)'
 
-          if git ls-files | grep -Eq '(^|/)target/'; then
-            echo 'repository-local target artifacts are tracked'
+          if git ls-files | grep -Eq '(^|/)target/|\.crate$|(^|/)criterion/'; then
+            printf '%s\n' 'STOP: generated target/package/criterion artifact is tracked'
             exit 1
           fi
+          printf '%s\n' 'tracked artifact audit: PASS'

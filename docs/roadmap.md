@@ -22,7 +22,9 @@
 
 **Accepted R6 merge:** `6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773`
 
-**Current phase:** R7 active; R7-A authorized
+**Accepted R7 merge:** `f28fc380926c8175ff9b5faeb092be5bd7426245`
+
+**Current phase:** R8-A reviewable — ready for owner release decision
 
 This roadmap is ordered. Later work may be researched early, but implementation
 must not bypass an earlier invariant or acceptance gate.
@@ -36,7 +38,8 @@ must not bypass an earlier invariant or acceptance gate.
 - **Teamlead accepted** — technical and architectural review passed.
 - **Owner accepted** — the owner accepted residual risk and repository outcome.
 - **Blocked** — an explicit prerequisite or unresolved result prevents progress.
-- **Deferred** — intentionally outside the current campaign boundary.
+- **Deferred** — intentionally outside the current campaign boundary until new
+  evidence justifies reconsideration.
 
 ## R0 — Establish the base of operations
 
@@ -110,78 +113,87 @@ See [performance.md](performance.md) and
 
 ## R7 — Optional interchange and integrations
 
-**Status:** ACTIVE
+**Status:** COMPLETE — OWNER ACCEPTED
 
-R7 is deliberately sliced so a stable inert interchange boundary exists before
-live storage or concrete external integrations are considered.
+R7 established a stable inert interchange boundary before considering live
+storage or concrete external integrations.
 
 ### R7-A — Versioned dense snapshot interchange
 
-**Status:** AUTHORIZED — IN DEVELOPMENT / QUALIFICATION
+**Status:** COMPLETE — OWNER ACCEPTED — MERGED IN PR #12
 
-**Baseline:**
+**Accepted merge:**
 
 ```text
-commit 6be8b0ce910d66d784cc5e5ca2d52a59f1cd3773
-tree   919f8f800f1ffa3b4750def03f803a807ff25179
+commit f28fc380926c8175ff9b5faeb092be5bd7426245
+tree   5d8bac5a769ba0fc3b77dc4b107ccd90d6c0dd86
 ```
 
-**Goal:** establish a Matrical-owned, versioned dense representation that can
-cross process/repository/storage boundaries without exposing ndarray or granting
-live backend authority.
+R7-A delivered `MatrixSnapshot<T>` with private schema fields, fixed-width `u64`
+dimensions, `DENSE_SNAPSHOT_VERSION = 1`, checked reconstruction, borrowed
+cloning and consuming ownership-transfer paths, optional exact Serde support,
+deny-unknown-fields deserialization, a deterministic integer fixture, and
+explicit format/transport/resource caveats.
 
-The bounded contract includes:
-
-- `MatrixSnapshot<T>` with private `version`, fixed-width `u64` dimensions, and
-  owned logical row-major values;
-- `DENSE_SNAPSHOT_VERSION = 1`;
-- borrowed O(n) cloning snapshot creation and a consuming no-`Clone` path;
-- checked reconstruction through existing `Shape`/`Matrix` invariants;
-- structural unsupported-version and dimension-conversion errors;
-- an optional exact Serde dependency and a dev/example-only JSON dependency;
-- deny-unknown-fields v1 deserialization;
-- a committed deterministic integer JSON fixture and semantic roundtrip tests;
-- default and all-feature qualification on Rust 1.85.0 and stable;
-- explicit format-neutral, untrusted-input, and caller-owned transport caveats.
-
-R7-A is specifically **not** a persistence engine or live backend abstraction.
-It adds no filesystem/database/network authority, sparse/mapped storage,
-`MatrixBackend`/`StorageBackend`, GAT/HRTB provider, Rayon path, or downstream
-consumer dependency. `MatrixSnapshot` is a specialized API and remains outside
-the everyday prelude.
+It did not add a persistence engine or live backend abstraction. ndarray remains
+private and Gear authority remains bounded to caller-selected Lens/LensMut.
 
 See [interchange.md](interchange.md) and
 [`development/2026-08-30-r7a-versioned-snapshot.md`](development/2026-08-30-r7a-versioned-snapshot.md).
 
 ### R7-B — Evidence-selected next storage/integration slice
 
-**Status:** BLOCKED ON R7-A ACCEPTANCE AND MERGE
+**Status:** DEFERRED — NO DEMONSTRATED SECOND-PROVIDER/INTEGRATION NEED
 
-After R7-A is accepted and merged, select any next R7 slice from concrete
-evidence rather than from a preferred integration target. Candidate needs may
-include Matrical-native persistence or durable storage, sparse/mapped
-representation, or a concrete external consumer that later demonstrates enough
-value to justify an adapter.
+R7-A acceptance did not itself demonstrate a need for another live Matrix
+provider, sparse/mapped storage, persistence, or a concrete external adapter.
+R7-B therefore does not invent an abstraction merely to advance the roadmap.
 
-Matrical core must remain independently useful. Any consumer-specific adapter
-belongs outside core in the consumer, a dedicated integration crate, or another
-explicit opt-in boundary. No named external project is the intended or preferred
-R7-B consumer.
-
-A real second live provider must exist before backend, lending, or provider
-traits are generalized. If no concrete second-provider or integration need is
-demonstrated, R7-B must not invent an abstraction merely to advance the roadmap.
+This is not a permanent rejection of sparse/mapped storage or integration work.
+If a real second provider or external consumer later demonstrates a concrete
+composability problem, a future bounded slice may reconsider the appropriate
+boundary. Matrical core must remain independently useful, and any adapter should
+preserve caller-selected Lens/LensMut Gear authority.
 
 ## R8 — Release qualification
 
-**Status:** BLOCKED ON R7 COMPLETION
+**Status:** R8-A REVIEWABLE
 
-Prepare the first rehabilitated release candidate: version/compatibility decision,
-changelog and migration notes, package/license audit, MSRV/stable/downstream
-qualification, documentation/example audit, benchmark baseline, snapshot-schema
-compatibility decision, and explicit owner-controlled publication decision.
+### R8-A — First rehabilitated release candidate
 
-No version bump, tag, release date, or publication is authorized by R7-A.
+**Status:** REVIEWABLE — READY FOR OWNER RELEASE DECISION
+
+**Baseline:**
+
+```text
+commit f28fc380926c8175ff9b5faeb092be5bd7426245
+tree   5d8bac5a769ba0fc3b77dc4b107ccd90d6c0dd86
+version 0.1.0
+MSRV    Rust 1.85.0
+```
+
+**Goal:** answer with mechanical evidence whether the accepted Matrical library
+can be packaged, documented, consumed, and versioned as a real Rust release
+without repository-only assumptions.
+
+R8-A owns package metadata/contents, registry and version reconnaissance,
+changelog, supported API classification, dense snapshot-v1 release policy,
+direct dependency/license audit, optional historical Crossbeam cleanup when it
+has no supported behavior, package verification on Rust 1.85/stable, independent
+packaged-artifact consumers for default and serde configurations, example/docs
+qualification, benchmark compile, release checklist, and an explicit readiness
+recommendation.
+
+Valid R8-A exits are:
+
+```text
+READY FOR OWNER RELEASE DECISION
+NOT RELEASE READY — BLOCKERS IDENTIFIED
+```
+
+Both are evidence-valid outcomes. R8-A does not publish to crates.io, create a
+tag, create a GitHub Release, announce a release date, or make an irreversible
+public release decision.
 
 ## Advanced Rust policy
 
@@ -198,4 +210,5 @@ the existing capability boundary.
 
 Testing, documentation, examples, dependency review, performance evidence,
 interchange compatibility, and authority analysis are part of every functional
-slice. They are not deferred cleanup.
+slice. They are not deferred cleanup. Release publication remains an explicit
+owner-controlled action after qualification.

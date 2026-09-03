@@ -1,7 +1,7 @@
 # Matrical documentation
 
 Use this map according to what you are trying to do. New downstream users should
-not need the development evidence to learn the library.
+not need development evidence to learn the library.
 
 ## Start here
 
@@ -9,7 +9,8 @@ not need the development evidence to learn the library.
    borrow through Lens/LensMut, run built-in Gears, provide Cog policy, inspect
    reports/Tags, define a Gear, and handle errors.
 2. [Interchange](interchange.md) — create/reconstruct versioned dense snapshots,
-   understand the optional Serde feature, schema v1, and caller-owned transport.
+   understand the optional Serde feature, schema v1 release policy, and
+   caller-owned transport.
 3. Crate rustdoc — the crate root explains the conceptual flow; `prelude` is the
    recommended import surface; `schematics` and `strategies` group deeper API
    navigation; `snapshot` is the specialized interchange surface.
@@ -20,16 +21,18 @@ not need the development evidence to learn the library.
 6. [`examples/r7_snapshot.rs`](../examples/r7_snapshot.rs) — in-memory JSON
    interchange example, compiled only with the `serde` feature.
 
-## API expectations
+## Release-facing expectations
 
-- [API stability and deprecation](api-stability.md) — current 0.1.0 Rust API and
-  snapshot-schema compatibility position.
+- [API stability and deprecation](api-stability.md) — current `0.1.0`
+  release-candidate Rust API and snapshot-schema compatibility policy.
 - [Architecture vision](architecture/vision.md) — Matrix/Lens/Gear/Cog/Tag and
   snapshot responsibilities, authority boundaries, storage, and deferred
   abstractions.
 - [Performance](performance.md) — R6 benchmark methodology, measured traversal
   result, allocation/copy accounting, and parallelism decision.
-- [Rehabilitation roadmap](roadmap.md) — ordered slice goals and exit gates.
+- [Release qualification](release.md) — repeatable package, compatibility,
+  downstream, dependency/license, and owner release gates.
+- [Rehabilitation roadmap](roadmap.md) — accepted R1–R7 result and R8-A gate.
 
 ## Testing and contribution
 
@@ -43,7 +46,8 @@ not need the development evidence to learn the library.
 ## Development evidence
 
 The `development/` reports preserve exact implementation and qualification
-history. They are review evidence, not prerequisites for ordinary API use.
+history. They are review evidence, not prerequisites for ordinary API use and
+are intentionally excluded from the distributable crate package.
 
 - [R1-A baseline reconnaissance](development/2026-08-20-r1a-baseline-reconnaissance.md)
 - [R1-B dependency/MSRV reproducibility](development/2026-08-24-r1b-dependency-msrv-reproducibility.md)
@@ -55,6 +59,7 @@ history. They are review evidence, not prerequisites for ordinary API use.
 - [R5 API learning surface](development/2026-08-29-r5-api-learning-surface.md)
 - [R6 measure and optimize](development/2026-08-29-r6-measure-optimize.md)
 - [R7-A versioned snapshot interchange](development/2026-08-30-r7a-versioned-snapshot.md)
+- [R8-A release candidate](development/2026-08-31-r8a-release-candidate.md)
 
 Consumer design notes remain under `architecture/consumers/` and inform future
 acceptance criteria without becoming Matrical's domain model.
