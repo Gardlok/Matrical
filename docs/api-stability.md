@@ -1,15 +1,11 @@
 # Matrical API stability and deprecation policy
 
-## Current 0.1.0 release-candidate position
+## Current 0.1.x release position
 
-Matrical R1–R7 rehabilitation is owner accepted and R8-A is qualifying version
-`0.1.0` as the first rehabilitated release candidate. R8-A does **not** publish
-that version, create a tag, or create a GitHub Release.
-
-Until the owner separately authorizes a release, `0.1.0` remains a candidate and
-not a published SemVer promise. If the owner publishes this candidate, the
-supported Rust surface described below becomes the release-facing contract for
-that version.
+Matrical R1–R8-A rehabilitation is owner accepted, and version `0.1.0` is the
+first rehabilitated release line. The owner authorized the release on 2026-09-02
+after release-candidate qualification. The supported Rust surface described below
+is the release-facing contract for `0.1.x`.
 
 ## Recommended, specialized, legacy, and private surface
 
@@ -32,13 +28,12 @@ The public learning contract centers on checked `Shape`, `Index`, `Region`, and
 `Matrix`; borrowing `Lens`/`LensMut`; typed `ReadGear`/`MutGear`, `Cog`, `Tag`,
 and `ExecutionReport`; and the specialized versioned snapshot boundary.
 
-## Rust SemVer after publication
+## Rust SemVer for 0.1.x
 
-If `0.1.0` is owner-authorized and published, Cargo-compatible `0.1.x` releases
-must not be used to smuggle incompatible changes to the supported Rust surface.
-A deliberate breaking change to that supported surface should advance to a new
-incompatible pre-1.0 line (for example `0.2.0`) unless a narrower SemVer rule
-clearly applies.
+Cargo-compatible `0.1.x` releases must not be used to smuggle incompatible
+changes to the supported Rust surface. A deliberate breaking change to that
+supported surface should advance to a new incompatible pre-1.0 line (for example
+`0.2.0`) unless a narrower SemVer rule clearly applies.
 
 Documentation-hidden historical residue does not gain a support promise merely
 because it remains technically reachable. Removing or changing that residue is
@@ -59,7 +54,7 @@ columns: u64
 row_major: sequence of T in deterministic logical row-major order
 ```
 
-The R8-A candidate policy is:
+The released policy is:
 
 > Within a released line, incompatible dense snapshot semantics must not silently
 > change under version 1. A future incompatible representation uses another
@@ -108,7 +103,7 @@ Rust deprecation attributes alone.
 
 ## What this document does not authorize
 
-This policy does not authorize a version bump, release date, tag, GitHub Release,
-crates.io publication, permanent schema-v1 ecosystem guarantee, new persistence
-backend, or external integration. R8-A qualification and owner release approval
-remain separate gates.
+This policy does not authorize a future version bump, future release date,
+snapshot-schema reinterpretation, permanent schema-v1 ecosystem guarantee, new
+persistence backend, or external integration. Each future release remains a
+separate reviewed decision.
