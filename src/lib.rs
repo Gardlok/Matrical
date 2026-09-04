@@ -77,8 +77,8 @@
 //! }
 //! ```
 //!
-//! Matrical remains version `0.1.0`; see the repository's API stability policy
-//! before treating these APIs as a SemVer stability guarantee.
+//! Matrical is in the `0.1.x` release line; see the repository's API stability
+//! policy before treating these APIs as a SemVer stability guarantee.
 
 #[cfg(test)]
 mod tests;

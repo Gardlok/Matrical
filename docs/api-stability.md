@@ -2,10 +2,9 @@
 
 ## Current 0.1.x release position
 
-Matrical R1–R8-A rehabilitation is owner accepted, and version `0.1.0` is the
-first rehabilitated release line. The owner authorized the release on 2026-09-02
-after release-candidate qualification. The supported Rust surface described below
-is the release-facing contract for `0.1.x`.
+Version `0.1.0` was published on 2026-09-04 as Matrical's first public release.
+The supported Rust surface described below is the release-facing contract for
+the `0.1.x` line.
 
 ## Recommended, specialized, legacy, and private surface
 

@@ -1,14 +1,22 @@
 # Changelog
 
 All notable changes to Matrical's supported release-facing surface are recorded
-here. Repository rehabilitation history remains available under
-`docs/development/` and is intentionally not replayed commit-by-commit here.
+here.
 
-## [0.1.0] - 2026-09-02
+## [0.1.1] - Unreleased
 
-This is the first rehabilitated Matrical release. The owner authorized release of
-version `0.1.0` on 2026-09-02 after R8-A package, downstream-consumer, MSRV,
-stable, registry, publish-dry-run, documentation, and mechanical qualification.
+### Changed
+
+- Reorganized the public README so installation and a minimal checked
+  Matrix/Region/Lens example appear before advanced transformation terminology.
+- Corrected the recorded publication date of version `0.1.0` to 2026-09-04.
+
+This patch release changes documentation and release metadata only. It does not
+change Matrical's API, behavior, dependencies, MSRV, or snapshot schema.
+
+## [0.1.0] - 2026-09-04
+
+First public release of Matrical.
 
 ### Added
 
@@ -30,11 +38,10 @@ stable, registry, publish-dry-run, documentation, and mechanical qualification.
 
 ### Changed
 
-- Repaired inherited Lens/LensMut traversal so selected iteration uses a checked
-  private ndarray Region view rather than scanning unrelated parent cells. The
-  accepted R6 owner-machine measurements showed the repaired dense path at
-  approximately direct-ndarray traversal performance while preserving the public
-  authority contract.
+- Improved Lens/LensMut traversal so selected iteration uses a checked private
+  ndarray Region view rather than scanning unrelated parent cells. Measurements
+  showed the dense path at approximately direct-ndarray traversal performance
+  while preserving the public authority contract.
 
 ### Behavioral and compatibility boundaries
 
