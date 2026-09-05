@@ -1,243 +1,143 @@
 # Matrical
 
-**Status: version 0.1.0 owner-authorized for release; R1–R8-A complete**
+Matrical is a Rust library for working with dense matrices through checked
+regions, borrowing views, and typed transformations.
 
-Matrical is a semantic matrix-transformation library built around validated
-geometry, borrowing selections, typed transformations, contextual policy,
-bounded provenance, and explicit versioned dense snapshots. It uses a private
-dense `ndarray::Array2<T>` backend while exposing a Matrical-owned contract for
-shape, selection, transformation authority, execution reporting, and
-interchange.
+It makes matrix operations explicit: what part of a matrix is being accessed,
+whether it can be mutated, and what transformation is being performed.
 
-Version `0.1.0` is the first rehabilitated release line. It is qualified on the
-declared Rust 1.85.0 MSRV and current stable through repository CI, including
-packaged-artifact downstream consumers. The owner authorized this release on
-2026-09-02 after R8-A Teamlead acceptance.
-
-## Core vocabulary
-
-- **Matrix** — owned dense values plus a validated two-dimensional `Shape`.
-- **Region** — a checked half-open rectangle used to select matrix data.
-- **Lens / LensMut** — immutable or exclusive mutable borrowing views over one
-  caller-selected Region, with Lens-local indexing.
-- **Gear** — a typed read-only or mutating transformation that receives only the
-  supplied Lens capability.
-- **Cog** — typed context or policy validated before a Gear executes.
-- **Tag** — bounded, inert provenance attached to successful execution reports;
-  Tags never control execution.
-- **ExecutionReport** — Gear identity, exact Region, effect class, typed output,
-  and ordered Tags for a successful execution.
-- **MatrixSnapshot** — inert, versioned dense row-major interchange data that can
-  cross a boundary without exposing ndarray or acquiring live storage authority.
-
-The normal execution flow is:
-
-```text
-Matrix
-  -> Lens / LensMut
-  -> Gear (+ typed Cog)
-  -> ExecutionReport (+ Tags)
-```
-
-## Using 0.1.0
-
-For the registry release:
+## Install
 
 ```toml
 [dependencies]
-matrical = "0.1.0"
+matrical = "0.1"
 ```
 
-For snapshot serialization through Serde:
-
-```toml
-[dependencies]
-matrical = { version = "0.1.0", features = ["serde"] }
-```
-
-A repository/path dependency remains useful when deliberately testing an
-unreleased checkout:
-
-```toml
-[dependencies]
-matrical = { path = "../Matrical" }
-```
+Matrical supports Rust 1.85.0 and newer.
 
 ## Quick start
 
-The recommended everyday import is:
-
-```rust
-use matrical::prelude::*;
-```
-
-The canonical beginner workflow is compiled as
-[`examples/r5_quickstart.rs`](examples/r5_quickstart.rs):
+The recommended everyday import is `matrical::prelude::*`.
 
 ```rust
 use matrical::prelude::*;
 
 fn main() -> Result<(), MatricalError> {
-    let shape = Shape::new(3, 4)?;
-    let mut matrix = Matrix::from_row_major(
+    let shape = Shape::new(2, 3)?;
+    let matrix = Matrix::from_row_major(
         shape,
-        vec![
-            0.0, 1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0, 7.0,
-            8.0, 9.0, 10.0, 11.0,
-        ],
+        vec![1, 2, 3, 4, 5, 6],
     )?;
-    let region = Region::new(shape, 1..3, 1..3)?;
-    let tags = vec![
-        Tag::source("quickstart"),
-        Tag::stage(TagStage::Transform),
-        Tag::sequence(1),
-    ];
 
-    {
-        let lens = matrix.lens(region)?;
-        let report = execute_read(&SumGear, &lens, &Cog::new(()), tags.clone())?;
-        assert_eq!(*report.output(), 30.0);
-    }
+    let region = Region::new(shape, 0..2, 1..3)?;
+    let lens = matrix.lens(region)?;
 
-    {
-        let mut lens = matrix.lens_mut(region)?;
-        let report = execute_mut(
-            &AddScalarGear,
-            &mut lens,
-            &Cog::new(ScalarPolicy::new(10.0)),
-            tags,
-        )?;
-        assert_eq!(*report.output(), 4);
-    }
-
-    assert_eq!(
-        matrix.into_row_major(),
-        vec![
-            0.0, 1.0, 2.0, 3.0,
-            4.0, 15.0, 16.0, 7.0,
-            8.0, 19.0, 20.0, 11.0,
-        ]
-    );
+    println!("{:?}", lens.to_row_major());
     Ok(())
 }
 ```
 
-`Region` bounds are half-open. `Lens` and `LensMut` expose coordinates local to
-the selection, and creating/reading/iterating a Lens does not intentionally
-allocate. `Lens::to_row_major()` is the explicit cloning conversion.
+This prints `[2, 3, 5, 6]`. The `Region` selects both rows and the last two
+columns. Region ranges are half-open, just like ordinary Rust ranges.
 
-See [Getting started](docs/getting-started.md) for construction, selection,
-built-in and custom Gears, Cog validation, Tags, and error handling.
+## Core concepts
 
-## Optional dense interchange and `serde`
+- **`Shape`** validates the dimensions of a matrix.
+- **`Matrix<T>`** owns dense values in deterministic row-major order.
+- **`Region`** describes a checked, half-open rectangular selection.
+- **`Lens<'a, T>`** borrows an immutable view of a Region.
+- **`LensMut<'a, T>`** borrows an exclusive mutable view of a Region.
 
-Need to move dense Matrix data across a process, repository, storage, or
-integration boundary? Use the crate-root `MatrixSnapshot` API. A borrowed
-`snapshot()` clones values; a consuming `into_snapshot()` transfers ownership.
-Checked reconstruction reuses Matrical's existing Shape/Matrix invariants.
+Lens coordinates are local to the selected Region. Creating, indexing, and
+iterating a Lens does not intentionally allocate. `to_row_major()` is the
+explicit cloning conversion when an owned vector is needed.
 
-The optional `serde` feature adds `Serialize` / `Deserialize` participation only
-for `MatrixSnapshot<T>`. It does **not** make `Matrix<T>` serializable, expose
-ndarray storage, or add a persistence engine. `serde_json` is development and
-example-only.
+The underlying `ndarray::Array2<T>` storage is private. Callers work through
+Matrical's checked `Shape`, `Matrix`, `Region`, and Lens APIs rather than relying
+on backend layout details.
 
-Dense snapshot schema v1 uses:
+See [Getting started](docs/getting-started.md) for checked construction,
+indexing, mutable views, error handling, and larger examples.
 
-```text
-version: u32
-rows: u64
-columns: u64
-row_major: sequence of T in deterministic logical row-major order
+## Typed transformations
+
+Matrical can run reusable transformations over exactly the Lens selected by the
+caller:
+
+- **`ReadGear`** inspects an immutable `Lens`.
+- **`MutGear`** modifies a `LensMut`.
+- **`Cog<C>`** carries typed context or policy validated before execution.
+- **`ExecutionReport<O>`** records the Gear, selected Region, effect, and typed
+  output of a successful transformation.
+- **`Tag`** values add inert provenance to a report. Tags never control
+  execution.
+
+Built-in Gears include `SumGear`, `AddScalarGear`, `ScaleGear`, and `ClampGear`.
+Execution is deterministic and sequential. A Gear receives only the Lens or
+LensMut supplied by its caller, not the full Matrix or permission to select a
+different Region.
+
+The [`r4_transform`](examples/r4_transform.rs) and
+[`r5_custom_gear`](examples/r5_custom_gear.rs) examples show built-in and custom
+transformations.
+
+## Snapshots and Serde
+
+`MatrixSnapshot<T>` is a versioned, dense row-major representation for moving
+matrix data across an application boundary without exposing the private ndarray
+backend. Reconstruction is checked against Matrical's Shape and Matrix
+invariants.
+
+Serde support is optional:
+
+```toml
+[dependencies]
+matrical = { version = "0.1", features = ["serde"] }
 ```
 
-Within a released line, incompatible dense snapshot semantics must not silently
-change under schema version 1. A future incompatible representation requires a
-different explicit snapshot schema version. Rust SemVer and snapshot schema
-versions remain separate contracts.
+The feature adds `Serialize` and `Deserialize` implementations for
+`MatrixSnapshot<T>` only. It does not make `Matrix<T>` serializable or add file,
+database, network, or persistence behavior.
 
-See [Interchange](docs/interchange.md) for schema, copy/ownership behavior,
-format limitations, and the caller-owned transport boundary.
+See [Interchange](docs/interchange.md) for snapshot schema versioning, ownership
+and copy behavior, and untrusted-input considerations.
 
-## Public API policy
+## Performance
 
-- `matrical::prelude::*` is the recommended everyday API.
-- Named crate-root exports are supported and discoverable.
-- `matrical::schematics` and `matrical::strategies` group the same supported
-  concepts for deeper navigation.
-- `matrical::snapshot` is the specialized supported interchange namespace and is
-  excluded from the everyday prelude deliberately.
-- Documentation-hidden operation/error/context prototype compatibility residue
-  is not recommended or supported for new downstream code.
-- ndarray and private Lens/Gear internals are implementation details.
+Lens and Gear traversal operate over the selected ndarray Region rather than
+scanning unrelated matrix cells. The accepted API remains deterministic and
+sequential; Matrical does not currently promise parallel execution.
 
-Matrical does not give a Gear direct Matrix or arbitrary Region-selection
-authority. Tags are provenance rather than a command channel.
+See the [performance report](https://github.com/Gardlok/Matrical/blob/main/docs/performance.md)
+for benchmark methodology and results.
 
-See [API stability](docs/api-stability.md) for the `0.1.x` SemVer and snapshot
-compatibility policy.
+## Supported Rust and API stability
 
-## Performance posture
+The minimum supported Rust version is 1.85.0. `matrical::prelude::*` is the
+recommended everyday API; `matrical::snapshot` is a specialized interchange
+namespace and is deliberately not included in the prelude.
 
-R6 repaired inherited parent-wide Lens traversal by holding a checked private
-ndarray Region view. Same-host measurements showed fixed-size selected traversal
-no longer scaled with unrelated parent cells and large dense Lens/Gear paths at
-approximately direct-ndarray performance. Those measurements are evidence, not a
-universal throughput promise.
+Matrical is in the `0.1.x` release line. See [API stability](docs/api-stability.md)
+for the supported public surface, pre-1.0 compatibility policy, and the separate
+snapshot-schema version contract.
 
-The accepted execution contract remains deterministic and sequential; Rayon is
-not part of `0.1.0` because R6 did not demonstrate a measured need for parallel
-runtime machinery.
+## Examples
 
-The detailed benchmark evidence remains in the repository's
-[performance report](https://github.com/Gardlok/Matrical/blob/main/docs/performance.md).
+The repository and crate package include:
 
-## Shipped examples
-
-The package ships runnable examples for the accepted progression:
-
-- `r2_core_matrix`
-- `r3_lens`
-- `r4_transform`
-- `r5_quickstart`
-- `r5_custom_gear`
-- `r7_snapshot` (`serde` feature required)
-
-The `0.1.0` release qualification exercises every applicable example on Rust
-1.85.0 and stable.
-
-## Release posture
-
-`CHANGELOG.md` records the `0.1.0` release dated 2026-09-02. The repository
-maintainer procedure is in
-[`docs/release.md`](https://github.com/Gardlok/Matrical/blob/main/docs/release.md).
-
-Repository-only campaign material remains available through the
-[documentation map](https://github.com/Gardlok/Matrical/blob/main/docs/README.md),
-[roadmap](https://github.com/Gardlok/Matrical/blob/main/docs/roadmap.md), and
-[active development record](https://github.com/Gardlok/Matrical/blob/main/docs/active-development.md).
-Those files are intentionally not required for ordinary packaged-crate use.
-
-## Design principles
-
-- Correctness before cleverness.
-- Ordinary invalid shape, index, Region, required-context, and snapshot
-  reconstruction input is fallible rather than panic-driven.
-- Borrowing and mutation authority stay explicit in Rust types.
-- Convenience must not let a Gear escape its caller-selected Lens.
-- Tags are provenance, never a command channel.
-- Interchange data is inert; callers own transport and persistence authority.
-- Advanced Rust features and performance work are added only when concrete
-  evidence justifies them.
-- Documentation, examples, and downstream-style package tests are part of the
-  release contract.
+- [`r2_core_matrix`](examples/r2_core_matrix.rs) — checked matrix construction
+  and access;
+- [`r3_lens`](examples/r3_lens.rs) — immutable and mutable borrowing views;
+- [`r4_transform`](examples/r4_transform.rs) — built-in typed transformations;
+- [`r5_quickstart`](examples/r5_quickstart.rs) — an end-to-end workflow;
+- [`r5_custom_gear`](examples/r5_custom_gear.rs) — a custom Gear and Cog policy;
+- [`r7_snapshot`](examples/r7_snapshot.rs) — Serde snapshot roundtrip (requires
+  the `serde` feature).
 
 ## Contributing
 
-Repository development remains evidence-gated. See the
-[contribution guide](https://github.com/Gardlok/Matrical/blob/main/CONTRIBUTING.md)
-and [testing procedures](https://github.com/Gardlok/Matrical/blob/main/docs/testing-procedures.md)
-before selecting campaign work.
+See the [contribution guide](https://github.com/Gardlok/Matrical/blob/main/CONTRIBUTING.md)
+and [testing procedures](https://github.com/Gardlok/Matrical/blob/main/docs/testing-procedures.md).
 
 ## License
 
