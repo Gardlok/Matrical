@@ -14,12 +14,14 @@ not need development evidence to learn the library.
 3. Crate rustdoc — the crate root explains the conceptual flow; `prelude` is the
    recommended import surface; `schematics` and `strategies` group deeper API
    navigation; `snapshot` is the specialized interchange surface.
-4. [`examples/r5_quickstart.rs`](../examples/r5_quickstart.rs) — canonical
-   beginner program.
-5. [`examples/r5_custom_gear.rs`](../examples/r5_custom_gear.rs) — downstream
-   static Gear extension with custom typed context.
-6. [`examples/r7_snapshot.rs`](../examples/r7_snapshot.rs) — in-memory JSON
-   interchange example, compiled only with the `serde` feature.
+4. [`examples/quickstart.rs`](../examples/quickstart.rs) — canonical beginner
+   program.
+5. [`examples/custom_gear.rs`](../examples/custom_gear.rs) — downstream static
+   Gear extension with custom typed context.
+6. [`examples/photo_brightness.rs`](../examples/photo_brightness.rs) — visual
+   real-world Region/Lens/Gear demo using a grayscale security-camera frame.
+7. [`examples/snapshot.rs`](../examples/snapshot.rs) — in-memory JSON interchange
+   example, compiled only with the `serde` feature.
 
 ## Release-facing expectations
 
