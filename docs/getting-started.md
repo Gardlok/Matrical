@@ -15,7 +15,7 @@ exactly `Shape::len()` values in logical row-major order and returns a typed err
 if the value count does not match.
 
 The complete workflow in this guide is compiled as
-[`examples/r5_quickstart.rs`](../examples/r5_quickstart.rs).
+[`examples/quickstart.rs`](../examples/quickstart.rs).
 
 ```rust
 let shape = Shape::new(3, 4)?;
@@ -147,7 +147,7 @@ registry, dynamic dispatch, internal module import, or `ndarray` dependency is
 required.
 
 The complete program below is compiled as
-[`examples/r5_custom_gear.rs`](../examples/r5_custom_gear.rs):
+[`examples/custom_gear.rs`](../examples/custom_gear.rs):
 
 ```rust
 use matrical::prelude::*;

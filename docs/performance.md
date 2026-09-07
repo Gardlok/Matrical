@@ -51,8 +51,8 @@ Criterion is a development-only dependency:
 criterion = { version = "=0.7.0", default-features = false, features = ["cargo_bench_support"] }
 ```
 
-The two harnesses are `benches/r6_selection.rs` and
-`benches/r6_transform.rs`, both with `harness = false`. They use
+The two harnesses are `benches/selection.rs` and
+`benches/transform.rs`, both with `harness = false`. They use
 `std::hint::black_box`, sample size 10, a 500 ms warm-up, and a 2 s measurement
 window.
 
@@ -62,8 +62,8 @@ graph.
 Run the harness with:
 
 ```bash
-cargo +stable bench --locked --bench r6_selection
-cargo +stable bench --locked --bench r6_transform
+cargo +stable bench --locked --bench selection
+cargo +stable bench --locked --bench transform
 ```
 
 Normal CI compiles benchmark targets but does not enforce wall-clock timing

@@ -77,8 +77,8 @@ Execution is deterministic and sequential. A Gear receives only the Lens or
 LensMut supplied by its caller, not the full Matrix or permission to select a
 different Region.
 
-The [`r4_transform`](examples/r4_transform.rs) and
-[`r5_custom_gear`](examples/r5_custom_gear.rs) examples show built-in and custom
+The [`transform`](examples/transform.rs) and
+[`custom_gear`](examples/custom_gear.rs) examples show built-in and custom
 transformations.
 
 ## Snapshots and Serde
@@ -125,14 +125,23 @@ snapshot-schema version contract.
 
 The repository and crate package include:
 
-- [`r2_core_matrix`](examples/r2_core_matrix.rs) — checked matrix construction
-  and access;
-- [`r3_lens`](examples/r3_lens.rs) — immutable and mutable borrowing views;
-- [`r4_transform`](examples/r4_transform.rs) — built-in typed transformations;
-- [`r5_quickstart`](examples/r5_quickstart.rs) — an end-to-end workflow;
-- [`r5_custom_gear`](examples/r5_custom_gear.rs) — a custom Gear and Cog policy;
-- [`r7_snapshot`](examples/r7_snapshot.rs) — Serde snapshot roundtrip (requires
-  the `serde` feature).
+- [`core_matrix`](examples/core_matrix.rs) — checked matrix construction and
+  access;
+- [`lens`](examples/lens.rs) — immutable and mutable borrowing views;
+- [`transform`](examples/transform.rs) — built-in typed transformations;
+- [`quickstart`](examples/quickstart.rs) — an end-to-end workflow;
+- [`custom_gear`](examples/custom_gear.rs) — a custom Gear and Cog policy;
+- [`photo_brightness`](examples/photo_brightness.rs) — visually brighten an
+  underexposed area of a grayscale image while Matrical restricts mutation to a
+  checked Region;
+- [`snapshot`](examples/snapshot.rs) — Serde snapshot roundtrip (requires the
+  `serde` feature).
+
+Run the visual image-processing demo with:
+
+```bash
+cargo run --example photo_brightness
+```
 
 ## Contributing
 

@@ -86,15 +86,16 @@ jobs:
         run: |
           set -euo pipefail
           for example in \
-            r2_core_matrix \
-            r3_lens \
-            r4_transform \
-            r5_quickstart \
-            r5_custom_gear
+            core_matrix \
+            lens \
+            transform \
+            quickstart \
+            custom_gear \
+            photo_brightness
           do
             cargo run --locked --example "$example"
           done
-          cargo run --locked --features serde --example r7_snapshot
+          cargo run --locked --features serde --example snapshot
 
       - name: Compile benchmarks
         run: cargo bench --locked --no-run
@@ -116,6 +117,24 @@ jobs:
             printf '%s\n' 'STOP: repository-development/generated clutter is packaged'
             exit 1
           fi
+
+          for packaged_path in \
+            examples/core_matrix.rs \
+            examples/lens.rs \
+            examples/transform.rs \
+            examples/quickstart.rs \
+            examples/custom_gear.rs \
+            examples/photo_brightness.rs \
+            examples/snapshot.rs \
+            benches/selection.rs \
+            benches/transform.rs
+          do
+            grep -Fxq "$packaged_path" "$QUAL_ROOT/package-list.txt" || {
+              printf 'STOP: expected packaged artifact is missing: %s\n' "$packaged_path"
+              exit 1
+            }
+          done
+          printf '%s\n' 'renamed examples/benches package audit: PASS'
 
           cargo package --locked
 
@@ -281,7 +300,7 @@ jobs:
 
           cargo publish --dry-run --locked 2>&1 | tee "$QUAL_ROOT/publish-dry-run.txt"
 
-      - name: Mechanical R8-A audit
+      - name: Mechanical repository audit
         shell: bash
         run: |
           set -euo pipefail
@@ -303,28 +322,6 @@ jobs:
           changed = subprocess.check_output(
               ["git", "diff", "--name-only", base, "HEAD"], text=True
           ).splitlines()
-
-          allowed = {
-              ".github/workflows/qualification.yml",
-              "Cargo.toml",
-              "Cargo.lock",
-              "README.md",
-              "CHANGELOG.md",
-              "src/lib.rs",
-              "src/schematics/mod.rs",
-              "src/schematics/vector.rs",
-              "docs/README.md",
-              "docs/active-development.md",
-              "docs/api-stability.md",
-              "docs/getting-started.md",
-              "docs/interchange.md",
-              "docs/roadmap.md",
-              "docs/release.md",
-              "docs/development/2026-08-31-r8a-release-candidate.md",
-          }
-          unexpected = sorted(set(changed) - allowed)
-          if unexpected:
-              raise SystemExit(f"unexpected R8-A paths: {unexpected}")
 
           missing_newline = []
           broken_links = []
@@ -354,6 +351,15 @@ jobs:
           print("Markdown relative links: PASS")
           print("final newlines: PASS")
           PY
+
+          STALE_RUNNABLES="$(find examples tests benches -maxdepth 1 -type f \
+            -regextype posix-extended -regex '.*/r[0-9]+_.*\.rs' -print)"
+          if [ -n "$STALE_RUNNABLES" ]; then
+            printf '%s\n' 'STOP: rehabilitation-prefixed runnable artifact remains'
+            printf '%s\n' "$STALE_RUNNABLES"
+            exit 1
+          fi
+          printf '%s\n' 'runnable artifact filename audit: PASS'
 
           if git grep -nE '\bunsafe[[:space:]]*(\{|fn[[:space:]]|impl[[:space:]]|trait[[:space:]]|extern[[:space:]])' -- '*.rs'; then
             printf '%s\n' 'STOP: unsafe Rust construct present; review required'

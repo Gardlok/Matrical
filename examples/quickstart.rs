@@ -10,7 +10,7 @@ fn main() -> Result<(), MatricalError> {
     )?;
     let region = Region::new(shape, 1..3, 1..3)?;
     let tags = vec![
-        Tag::source("r5-quickstart"),
+        Tag::source("quickstart"),
         Tag::stage(TagStage::Transform),
         Tag::sequence(1),
     ];
